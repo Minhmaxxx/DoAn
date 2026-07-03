@@ -1,70 +1,70 @@
 @echo off
-:: NutriVision — Startup Script for Windows
-:: Tự động kích hoạt môi trường ảo và chạy ứng dụng Streamlit
+:: NutriVision - Startup Script for Windows
+:: Automatically activates virtual environment and runs Streamlit
 
 echo.
 echo  ========================================
-echo    NutriVision Startup - Trợ lý Dinh Dưỡng
+echo    NutriVision Startup - Nutrition Assistant
 echo  ========================================
 echo.
 
-:: Thiết lập bảng mã UTF-8 để hiển thị tiếng Việt không bị lỗi font
+:: Set UTF-8 encoding for Python
 set PYTHONUTF8=1
 chcp 65001 > nul
 
-:: 1. Tự động kiểm tra và kích hoạt môi trường ảo (Virtual Environment)
+:: 1. Auto-detect and activate virtual environment
 if exist ".venv\Scripts\activate.bat" (
-    echo [INFO] Phát hiện môi trường ảo tại .venv. Đang kích hoạt...
+    echo [INFO] Found virtual environment at .venv. Activating...
     call .venv\Scripts\activate.bat
 ) else if exist "venv\Scripts\activate.bat" (
-    echo [INFO] Phát hiện môi trường ảo tại venv. Đang kích hoạt...
+    echo [INFO] Found virtual environment at venv. Activating...
     call venv\Scripts\activate.bat
 ) else (
-    echo [WARNING] Không tìm thấy thư mục môi trường ảo (.venv hoặc venv).
-    echo           Hệ thống sẽ chạy bằng môi trường Python hệ thống (Global).
+    echo [WARNING] No virtual environment found (.venv or venv).
+    echo           The system will run using the global Python environment.
     echo.
 )
 
-:: 2. Kiểm tra file cấu hình .env
+:: 2. Check for .env file
 if not exist ".env" (
-    echo [WARNING] Không tìm thấy file .env.
-    echo           Hãy copy file .env.example thành .env và điền API keys.
-    echo           Ứng dụng sẽ tự động chạy ở chế độ Demo (không có tư vấn LLM).
+    echo [WARNING] .env file not found.
+    echo           Please copy .env.example to .env and fill in your API keys.
+    echo           The application will run in Demo mode (without LLM advice).
     echo.
 )
 
-:: 3. Kiểm tra xem Streamlit có sẵn sàng không
-echo [INFO] Đang kiểm tra thư viện Streamlit...
+:: 3. Check if Streamlit is available
+echo [INFO] Checking Streamlit library...
 
-:: Thử kiểm tra lệnh streamlit toàn cục
+:: Check for global streamlit command
 where streamlit >nul 2>nul
 if %errorlevel% equ 0 (
-    echo [INFO] Tìm thấy lệnh streamlit. Đang khởi động ứng dụng...
-    echo [INFO] Trình duyệt sẽ tự động mở tại http://localhost:8501
-    echo [INFO] Nhấn Ctrl+C để dừng ứng dụng.
+    echo [INFO] Found streamlit command. Starting application...
+    echo [INFO] The browser will open automatically at http://localhost:8501
+    echo [INFO] Press Ctrl+C to stop the application.
     echo.
     streamlit run app.py --server.port 8501
     goto end
 )
 
-:: Kiểm tra xem có thể import streamlit qua python không
+:: Check if streamlit can be imported via Python
 python -c "import streamlit" >nul 2>nul
 if %errorlevel% equ 0 (
-    echo [INFO] Tìm thấy thư viện streamlit qua Python. Đang khởi động ứng dụng...
-    echo [INFO] Trình duyệt sẽ tự động mở tại http://localhost:8501
-    echo [INFO] Nhấn Ctrl+C để dừng ứng dụng.
+    echo [INFO] Found streamlit library via Python. Starting application...
+    echo [INFO] The browser will open automatically at http://localhost:8501
+    echo [INFO] Press Ctrl+C to stop the application.
     echo.
     python -m streamlit run app.py --server.port 8501
     goto end
 )
 
-:: Nếu cả hai cách đều lỗi, hướng dẫn cài đặt
-echo [ERROR] Không tìm thấy thư viện Streamlit trên máy của bạn.
+:: If both fail, print installation instructions
+echo [ERROR] Streamlit library not found on your system.
 echo.
-echo Vui lòng mở PowerShell hoặc CMD tại thư mục này và chạy lệnh sau để cài đặt:
+echo Please open PowerShell or CMD in this directory and run the following command to install:
 echo   pip install -r requirements.txt
 echo.
-echo Sau khi cài đặt xong, hãy chạy lại file run.bat này.
+echo After installation is complete, please run this run.bat file again.
 echo.
 
 :end
