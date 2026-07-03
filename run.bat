@@ -20,7 +20,7 @@ if exist ".venv\Scripts\activate.bat" (
     echo [INFO] Found virtual environment at venv. Activating...
     call venv\Scripts\activate.bat
 ) else (
-    echo [WARNING] No virtual environment found (.venv or venv).
+    echo [WARNING] No virtual environment found - .venv or venv
     echo           The system will run using the global Python environment.
     echo.
 )
@@ -29,7 +29,7 @@ if exist ".venv\Scripts\activate.bat" (
 if not exist ".env" (
     echo [WARNING] .env file not found.
     echo           Please copy .env.example to .env and fill in your API keys.
-    echo           The application will run in Demo mode (without LLM advice).
+    echo           The application will run in Demo mode - without LLM advice.
     echo.
 )
 
