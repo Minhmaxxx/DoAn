@@ -21,7 +21,7 @@ if exist ".venv\Scripts\activate.bat" (
     call venv\Scripts\activate.bat
 ) else (
     echo [WARNING] Không tìm thấy thư mục môi trường ảo (.venv hoặc venv).
-    echo           Hệ thống sẽ thử chạy Streamlit bằng môi trường Python hệ thống (Global).
+    echo           Hệ thống sẽ chạy bằng môi trường Python hệ thống (Global).
     echo.
 )
 
@@ -33,21 +33,27 @@ if not exist ".env" (
     echo.
 )
 
-:: 3. Chạy Streamlit
-echo [INFO] Đang khởi động Streamlit tại http://localhost:8501 ...
-echo [INFO] Nhấn Ctrl+C trong cửa sổ này để tắt ứng dụng.
-echo.
+:: 3. Kiểm tra xem Streamlit có sẵn sàng không
+echo [INFO] Đang kiểm tra thư viện Streamlit...
 
-:: Thử chạy trực tiếp lệnh streamlit
+:: Thử kiểm tra lệnh streamlit toàn cục
 where streamlit >nul 2>nul
 if %errorlevel% equ 0 (
+    echo [INFO] Tìm thấy lệnh streamlit. Đang khởi động ứng dụng...
+    echo [INFO] Trình duyệt sẽ tự động mở tại http://localhost:8501
+    echo [INFO] Nhấn Ctrl+C để dừng ứng dụng.
+    echo.
     streamlit run app.py --server.port 8501
     goto end
 )
 
-:: Nếu không tìm thấy lệnh streamlit trực tiếp, thử chạy thông qua python -m streamlit
-python -m streamlit run app.py --server.port 8501 >nul 2>nul
+:: Kiểm tra xem có thể import streamlit qua python không
+python -c "import streamlit" >nul 2>nul
 if %errorlevel% equ 0 (
+    echo [INFO] Tìm thấy thư viện streamlit qua Python. Đang khởi động ứng dụng...
+    echo [INFO] Trình duyệt sẽ tự động mở tại http://localhost:8501
+    echo [INFO] Nhấn Ctrl+C để dừng ứng dụng.
+    echo.
     python -m streamlit run app.py --server.port 8501
     goto end
 )
@@ -55,21 +61,10 @@ if %errorlevel% equ 0 (
 :: Nếu cả hai cách đều lỗi, hướng dẫn cài đặt
 echo [ERROR] Không tìm thấy thư viện Streamlit trên máy của bạn.
 echo.
-echo Để khắc phục, vui lòng chọn một trong hai cách sau:
+echo Vui lòng mở PowerShell hoặc CMD tại thư mục này và chạy lệnh sau để cài đặt:
+echo   pip install -r requirements.txt
 echo.
-echo CÁCH 1 (Khuyên dùng - Dùng môi trường ảo):
-echo   1. Mở PowerShell/CMD tại thư mục dự án và chạy:
-echo      python -m venv .venv
-echo   2. Kích hoạt môi trường ảo:
-echo      .venv\Scripts\activate
-echo   3. Cài đặt các thư viện cần thiết:
-echo      pip install -r requirements.txt
-echo   4. Chạy lại file run.bat này.
-echo.
-echo CÁCH 2 (Cài trực tiếp lên máy):
-echo   1. Mở PowerShell/CMD tại thư mục dự án và chạy:
-echo      pip install -r requirements.txt
-echo   2. Chạy lại file run.bat này.
+echo Sau khi cài đặt xong, hãy chạy lại file run.bat này.
 echo.
 
 :end
