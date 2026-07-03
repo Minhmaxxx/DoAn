@@ -1,0 +1,333 @@
+/* 
+ * assets/style.css — NutriVision Custom Theme
+ * Dark mode, glassmorphism, modern typography
+ */
+
+/* ─── Google Fonts ─────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
+/* ─── Global Reset & Font ──────────────────────────────────────────────────── */
+html, body, [class*="css"] {
+    font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Hide default Streamlit header/footer */
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+header { visibility: hidden; }
+
+/* ─── Main Container ───────────────────────────────────────────────────────── */
+.main .block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+    max-width: 1200px;
+}
+
+/* ─── Hero Header ──────────────────────────────────────────────────────────── */
+.hero-header {
+    text-align: center;
+    padding: 3rem 2rem 2rem;
+    background: linear-gradient(135deg, rgba(78, 205, 196, 0.12), rgba(255, 107, 107, 0.08));
+    border-radius: 20px;
+    border: 1px solid rgba(78, 205, 196, 0.2);
+    margin-bottom: 2rem;
+}
+
+.hero-icon {
+    font-size: 4rem;
+    margin-bottom: 0.5rem;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-8px); }
+}
+
+.hero-title {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #4ECDC4, #45B7D1, #FF6B6B);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+    line-height: 1.2;
+}
+
+.hero-subtitle {
+    font-size: 1.2rem;
+    color: #adb5bd;
+    margin-top: 0.75rem;
+    line-height: 1.6;
+}
+
+.hero-tagline {
+    font-size: 0.9rem;
+    color: #4ECDC4;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+/* ─── Page Title ───────────────────────────────────────────────────────────── */
+.page-title {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #f0f0f0;
+    margin-bottom: 0.5rem;
+}
+
+/* ─── Feature Cards ────────────────────────────────────────────────────────── */
+.feature-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.feature-card:hover {
+    background: rgba(78, 205, 196, 0.08);
+    border-color: rgba(78, 205, 196, 0.3);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(78, 205, 196, 0.15);
+}
+
+.feature-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.feature-card h3 {
+    color: #e0e0e0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.feature-card p {
+    color: #9e9e9e;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+/* ─── Stats Card ───────────────────────────────────────────────────────────── */
+.stats-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #4ECDC4;
+    min-width: 70px;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #9e9e9e;
+}
+
+/* ─── Food Cards (HITL) ────────────────────────────────────────────────────── */
+.food-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: rgba(78, 205, 196, 0.06);
+    border: 1px solid rgba(78, 205, 196, 0.2);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.food-emoji {
+    font-size: 1.8rem;
+}
+
+.food-card strong {
+    font-size: 1rem;
+    color: #e0e0e0;
+    flex: 1;
+}
+
+.confidence-badge {
+    font-size: 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #aaa;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+/* ─── Food Badges (list) ───────────────────────────────────────────────────── */
+.food-badge {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    color: #ccc;
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+/* ─── Metric Cards ─────────────────────────────────────────────────────────── */
+.metric-card {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    border-left: 4px solid #4ECDC4;
+    padding: 1.2rem 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.metric-label {
+    font-size: 0.8rem;
+    color: #9e9e9e;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #4ECDC4;
+    line-height: 1.1;
+}
+
+.metric-unit {
+    font-size: 0.9rem;
+    color: #aaa;
+    margin-top: 0.25rem;
+}
+
+/* ─── Goal Description ─────────────────────────────────────────────────────── */
+.goal-desc {
+    background: rgba(255, 217, 61, 0.08);
+    border: 1px solid rgba(255, 217, 61, 0.2);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: #FFD93D;
+    margin-top: 0.5rem;
+}
+
+/* ─── BMI Scale ────────────────────────────────────────────────────────────── */
+.bmi-scale-container {
+    position: relative;
+    margin: 1rem 0;
+    padding-bottom: 1.5rem;
+}
+
+.bmi-scale-bar {
+    display: flex;
+    border-radius: 8px;
+    overflow: hidden;
+    height: 36px;
+}
+
+.bmi-segment {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: white;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.seg-underweight { background: #3498db; }
+.seg-normal { background: #2ecc71; }
+.seg-overweight { background: #f39c12; }
+.seg-obese { background: #e74c3c; }
+
+.bmi-indicator {
+    position: absolute;
+    bottom: 0;
+    transform: translateX(-50%);
+    font-size: 1.2rem;
+    color: white;
+    transition: left 0.5s ease;
+    text-shadow: 0 0 4px rgba(0,0,0,0.5);
+}
+
+/* ─── Streamlit Override: Buttons ──────────────────────────────────────────── */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #4ECDC4, #45B7D1) !important;
+    color: #0a0a0a !important;
+    font-weight: 600 !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 0.6rem 1.5rem !important;
+    transition: all 0.3s ease !important;
+    box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3) !important;
+}
+
+.stButton > button[kind="primary"]:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 8px 25px rgba(78, 205, 196, 0.4) !important;
+}
+
+/* ─── Sidebar styling ──────────────────────────────────────────────────────── */
+[data-testid="stSidebar"] {
+    background: rgba(20, 20, 30, 0.95) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+/* ─── Metrics ──────────────────────────────────────────────────────────────── */
+[data-testid="stMetric"] {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    padding: 0.75rem;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+[data-testid="stMetricValue"] {
+    color: #4ECDC4 !important;
+    font-weight: 700 !important;
+}
+
+/* ─── Tabs ──────────────────────────────────────────────────────────────────── */
+[data-testid="stTab"] {
+    color: #aaa;
+}
+
+button[data-baseweb="tab"][aria-selected="true"] {
+    color: #4ECDC4 !important;
+    border-bottom-color: #4ECDC4 !important;
+}
+
+/* ─── DataFrames ────────────────────────────────────────────────────────────── */
+.dataframe {
+    font-size: 0.85rem !important;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+::-webkit-scrollbar-thumb { background: rgba(78, 205, 196, 0.4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(78, 205, 196, 0.7); }
+
+/* ─── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .hero-title { font-size: 2rem; }
+    .feature-card { padding: 1rem; }
+}

@@ -1,0 +1,67 @@
+# =============================================================================
+# .gitignore — NutriVision Project
+# =============================================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+
+# --- Virtual Environments ---
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# --- Streamlit Secrets (NEVER commit this!) ---
+.streamlit/secrets.toml
+
+# --- Model Weights (too large for Git, use Git LFS or share separately) ---
+models/weights/*.pt
+models/weights/*.onnx
+models/weights/*.engine
+models/weights/*.tflite
+
+# --- Training Artifacts ---
+runs/
+*.pt.backup
+train_results/
+
+# --- Data (large files) ---
+data/sample_images/*
+!data/sample_images/.gitkeep
+data/meal_history.json
+
+# --- Jupyter Notebooks ---
+.ipynb_checkpoints/
+*.ipynb
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Roboflow downloads ---
+*.zip
+datasets/

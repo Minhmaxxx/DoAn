@@ -1,0 +1,31 @@
+# training/dataset.yaml
+# YOLOv8 Dataset Configuration for NutriVision
+# Place this file in your dataset root directory OR use the one exported by Roboflow
+
+# ─── Dataset Paths ───────────────────────────────────────────────────────────
+# (Roboflow will auto-generate paths when you export)
+path: ../datasets/nutrivision  # Dataset root (relative to ultralytics working dir)
+train: images/train
+val: images/valid
+test: images/test
+
+# ─── Classes ─────────────────────────────────────────────────────────────────
+nc: 10  # Number of classes
+
+names:
+  0: pho_bo        # Phở bò
+  1: bun_bo_hue    # Bún bò Huế
+  2: bun_cha       # Bún chả
+  3: com_tam       # Cơm tấm sườn
+  4: banh_mi       # Bánh mì
+  5: goi_cuon      # Gỏi cuốn
+  6: nem_ran       # Nem rán
+  7: banh_cuon     # Bánh cuốn
+  8: chao_long     # Cháo lòng
+  9: xoi_ga        # Xôi gà
+
+# ─── Notes ───────────────────────────────────────────────────────────────────
+# Dataset collected and labeled via Roboflow
+# Augmentation applied: Rotation, Brightness, Mosaic, Flip
+# Split: 70% train / 20% val / 10% test
+# Target: ~300 images per class = ~3000 total before augmentation
