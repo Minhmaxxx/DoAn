@@ -26,7 +26,7 @@ LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")  # 'gemini' or 'openai'
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
-GEMINI_MODEL = "gemini-1.5-flash"
+GEMINI_MODEL = "gemini-pro"
 OPENAI_MODEL = "gpt-4o-mini"
 LLM_MAX_TOKENS = 1024
 LLM_TEMPERATURE = 0.7
@@ -43,8 +43,8 @@ SLIDER_DEFAULT = 1.0 # Default = 1 standard portion
 SLIDER_STEP = 0.25   # Increment step
 
 # ─── Streamlit UI ────────────────────────────────────────────────────────────
-APP_TITLE = "🥗 NutriVision — Trợ lý Dinh dưỡng Thông minh"
-APP_ICON = "🥗"
+APP_TITLE = " NutriVision — Trợ lý Dinh dưỡng Thông minh"
+APP_ICON = ""
 APP_LAYOUT = "wide"
 
 # ─── Supported Food Classes (must match YOLOv8 label names) ──────────────────
@@ -77,14 +77,14 @@ FOOD_DISPLAY_NAMES = {
 
 # Emoji for each food (for UI display)
 FOOD_EMOJIS = {
-    "pho_bo":     "🍜",
-    "bun_bo_hue": "🍜",
-    "bun_cha":    "🍱",
-    "com_tam":    "🍚",
-    "banh_mi":    "🥖",
-    "goi_cuon":   "🥗",
-    "nem_ran":    "🥟",
-    "banh_cuon":  "🫔",
-    "chao_long":  "🥣",
-    "xoi_ga":     "🍙",
+    "pho_bo":     "",
+    "bun_bo_hue": "",
+    "bun_cha":    "",
+    "com_tam":    "",
+    "banh_mi":    "",
+    "goi_cuon":   "",
+    "nem_ran":    "",
+    "banh_cuon":  "",
+    "chao_long":  "",
+    "xoi_ga":     "",
 }

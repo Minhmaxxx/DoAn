@@ -27,11 +27,11 @@ Nguyên tắc tư vấn:
 - Khuyến khích và tạo động lực cho người dùng
 
 Định dạng phản hồi bằng Markdown với các phần:
-1. 📊 **Phân tích bữa ăn hiện tại**
-2. ✅ **Điểm tốt** (nếu có)
-3. ⚠️ **Cần cải thiện** (nếu có)
-4. 🍽️ **Đề xuất bữa tiếp theo**
-5. 💡 **Mẹo dinh dưỡng**
+1. **Phân tích bữa ăn hiện tại**
+2. **Điểm tốt** (nếu có)
+3. **Cần cải thiện** (nếu có)
+4. **Đề xuất bữa tiếp theo**
+5. **Mẹo dinh dưỡng**
 """
 
 
@@ -80,12 +80,12 @@ def build_nutrition_prompt(
 {foods_str}
 
 **Tổng kết bữa ăn:**
-- 🔥 Calo: **{meal_data.get('total_calories', 0)} kcal**
+- Calo: **{meal_data.get('total_calories', 0)} kcal**
   (= {round(meal_data.get('total_calories', 0) / goal_data.get('target_calories', 2000) * 100, 1)}% mục tiêu ngày)
-- 🌾 Carb: {meal_data.get('carbohydrate_g', 0)}g
-- 💪 Protein: {meal_data.get('protein_g', 0)}g
-- 🥑 Fat: {meal_data.get('fat_g', 0)}g
-- 🌿 Chất xơ: {meal_data.get('fiber_g', 0)}g
+- Carb: {meal_data.get('carbohydrate_g', 0)}g
+- Protein: {meal_data.get('protein_g', 0)}g
+- Fat: {meal_data.get('fat_g', 0)}g
+- Chất xơ: {meal_data.get('fiber_g', 0)}g
 
 **Mục tiêu macro/ngày:**
 - Carb: {goal_data.get('macro_targets', {}).get('carbohydrate_g', '?')}g
@@ -183,7 +183,7 @@ class NutriLLM:
 
         except Exception as e:
             return (
-                f"⚠️ **Lỗi kết nối AI:** {e}\n\n"
+                f" **Lỗi kết nối AI:** {e}\n\n"
                 "Vui lòng kiểm tra API key trong file `.env` và thử lại."
             )
 
@@ -233,7 +233,7 @@ class NutriLLM:
                         yield delta
 
         except Exception as e:
-            yield f"\n\n⚠️ **Lỗi kết nối AI:** {e}\n\nVui lòng kiểm tra API key."
+            yield f"\n\n **Lỗi kết nối AI:** {e}\n\nVui lòng kiểm tra API key."
 
     def _demo_advice(self, meal_data: dict, goal_data: dict) -> str:
         """Return demo advice when no API key is configured."""
@@ -242,27 +242,27 @@ class NutriLLM:
         remaining = target_cal - total_cal
 
         return f"""
-## 📊 Phân tích bữa ăn hiện tại
+## Phân tích bữa ăn hiện tại
 
-> ⚠️ *Đây là phân tích mẫu. Để nhận tư vấn cá nhân hóa từ AI, hãy thêm API key vào file `.env`.*
+>  *Đây là phân tích mẫu. Để nhận tư vấn cá nhân hóa từ AI, hãy thêm API key vào file `.env`.*
 
 Bữa ăn của bạn cung cấp **{total_cal} kcal**, chiếm 
 **{round(total_cal/target_cal*100, 1)}%** mục tiêu calo ngày ({target_cal} kcal).
 
-## ✅ Điểm tốt
+## Điểm tốt
 - Bạn đã theo dõi lượng calo — đây là bước đầu tiên và quan trọng nhất!
 - Các món ăn Việt Nam truyền thống thường giàu chất xơ và protein.
 
-## ⚠️ Cần cải thiện
+## Cần cải thiện
 - Hãy đảm bảo uống đủ **2-2.5 lít nước** mỗi ngày.
 - Bổ sung thêm rau xanh và trái cây để tăng vitamin.
 
-## 🍽️ Đề xuất bữa tiếp theo
+## Đề xuất bữa tiếp theo
 Bạn còn khoảng **{max(0, remaining):.0f} kcal** cho phần còn lại của ngày. Gợi ý:
 - Bữa nhẹ: Gỏi cuốn tươi (~180 kcal) + trái cây tươi
 - Bữa tối: Cháo lòng (~380 kcal) với nhiều rau
 
-## 💡 Mẹo dinh dưỡng hôm nay
+## Mẹo dinh dưỡng hôm nay
 Ăn chậm, nhai kỹ — não cần 20 phút để nhận tín hiệu no từ dạ dày. 
 Điều này giúp bạn ăn ít hơn 10-20% mà vẫn cảm thấy đủ no!
 """.strip()

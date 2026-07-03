@@ -67,11 +67,11 @@ def scrape_images(food_class: str, count: int = 350, output_dir: Path = None) ->
     try:
         from icrawler.builtin import GoogleImageCrawler, BingImageCrawler
     except ImportError:
-        print("❌ icrawler not installed. Run: pip install icrawler")
+        print(" icrawler not installed. Run: pip install icrawler")
         return 0
 
     for query in queries:
-        print(f"  🔍 Query: '{query}'")
+        print(f"   Query: '{query}'")
         temp_dir = output_dir / "temp"
         temp_dir.mkdir(exist_ok=True)
 
@@ -117,7 +117,7 @@ def scrape_images(food_class: str, count: int = 350, output_dir: Path = None) ->
 
         shutil.rmtree(temp_dir, ignore_errors=True)
 
-    print(f"  ✅ Saved {total_saved} unique images for '{food_class}'")
+    print(f"   Saved {total_saved} unique images for '{food_class}'")
     return total_saved
 
 
@@ -129,11 +129,11 @@ def validate_dataset(raw_dir: Path) -> dict:
             images = list(food_dir.glob("*.jpg")) + list(food_dir.glob("*.png"))
             stats[food_dir.name] = len(images)
 
-    print("\n📊 Dataset Statistics:")
+    print("\n Dataset Statistics:")
     print(f"{'Food':<20} {'Count':>8} {'Status':>12}")
     print("-" * 45)
     for food, count in sorted(stats.items()):
-        status = "✅ OK" if count >= 200 else ("⚠️ Low" if count >= 100 else "❌ Insufficient")
+        status = " OK" if count >= 200 else (" Low" if count >= 100 else " Insufficient")
         print(f"{food:<20} {count:>8} {status:>12}")
     print(f"\nTotal images: {sum(stats.values())}")
     return stats
@@ -158,14 +158,14 @@ if __name__ == "__main__":
     food_classes = list(FOOD_QUERIES.keys()) if args.food == "all" else [args.food]
     total = 0
     for food_class in food_classes:
-        print(f"\n🍽️ Collecting images for: {food_class}")
+        print(f"\n Collecting images for: {food_class}")
         n = scrape_images(food_class, count=args.count)
         total += n
 
-    print(f"\n🎉 Total images collected: {total}")
+    print(f"\n Total images collected: {total}")
     validate_dataset(raw_dir)
     print(
-        "\n📋 Next steps:\n"
+        "\n Next steps:\n"
         "  1. Review images, remove irrelevant/duplicate ones\n"
         "  2. Upload to Roboflow and label with bounding boxes\n"
         "  3. Enable augmentation and export in YOLOv8 format\n"

@@ -21,7 +21,6 @@ from utils.visualization import daily_calorie_chart, macro_donut_chart
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Lịch sử — NutriVision",
-    page_icon="📊",
     layout="wide",
 )
 
@@ -61,7 +60,7 @@ def load_all_history() -> list[dict]:
 
 
 def main():
-    st.markdown('<h1 class="page-title">📊 Lịch sử Dinh dưỡng</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="page-title"> Lịch sử Dinh dưỡng</h1>', unsafe_allow_html=True)
     st.markdown("Theo dõi tiến trình ăn uống và xu hướng dinh dưỡng theo thời gian.")
     st.markdown("---")
 
@@ -69,7 +68,7 @@ def main():
 
     if not history:
         st.info(
-            "📭 Chưa có dữ liệu lịch sử. "
+            " Chưa có dữ liệu lịch sử. "
             "Hãy phân tích một bữa ăn và lưu lại tại trang **Phân tích ảnh**."
         )
         _render_demo_history()
@@ -88,16 +87,16 @@ def main():
     today_calories = sum(r["totals"]["calories"] for r in today_meals)
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("📅 Hôm nay", f"{today_calories:.0f} kcal",
+    col1.metric(" Hôm nay", f"{today_calories:.0f} kcal",
                 f"{today_calories - target_cal:+.0f} kcal vs mục tiêu")
-    col2.metric("🍽️ Số bữa hôm nay", len(today_meals))
-    col3.metric("📆 Tổng bữa đã ghi", len(history))
-    col4.metric("🎯 Mục tiêu/ngày", f"{target_cal:.0f} kcal")
+    col2.metric(" Số bữa hôm nay", len(today_meals))
+    col3.metric(" Tổng bữa đã ghi", len(history))
+    col4.metric(" Mục tiêu/ngày", f"{target_cal:.0f} kcal")
 
     st.markdown("---")
 
     # ── 7-Day Chart ────────────────────────────────────────────────────────
-    st.markdown("### 📈 Calo 7 Ngày Gần Nhất")
+    st.markdown("### Calo 7 Ngày Gần Nhất")
 
     dates_7 = [(datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(6, -1, -1)]
     calories_7 = []
@@ -112,7 +111,7 @@ def main():
     st.markdown("---")
 
     # ── Recent Meals Table ──────────────────────────────────────────────────
-    st.markdown("### 🍽️ Danh sách Bữa ăn Gần đây")
+    st.markdown("### Danh sách Bữa ăn Gần đây")
 
     tab_all, tab_today = st.tabs(["Tất cả", "Hôm nay"])
 
@@ -128,7 +127,7 @@ def main():
     st.markdown("---")
 
     # ── Weekly Macro Breakdown ──────────────────────────────────────────────
-    st.markdown("### 🥗 Phân tích Macro Tuần Này")
+    st.markdown("### Phân tích Macro Tuần Này")
     week_meals = [r for r in history if r.get("date") in dates_7]
     if week_meals:
         total_carb = sum(r["totals"].get("carbohydrate_g", 0) for r in week_meals)
@@ -154,9 +153,9 @@ def main():
 
     # ── Clear History ────────────────────────────────────────────────────────
     st.markdown("---")
-    with st.expander("⚠️ Xóa lịch sử"):
+    with st.expander(" Xóa lịch sử"):
         st.warning("Hành động này sẽ xóa toàn bộ lịch sử bữa ăn và không thể hoàn tác.")
-        if st.button("🗑️ Xóa tất cả lịch sử", type="secondary"):
+        if st.button(" Xóa tất cả lịch sử", type="secondary"):
             st.session_state.meal_history = []
             if config.MEAL_HISTORY_PATH.exists():
                 config.MEAL_HISTORY_PATH.unlink()
@@ -191,7 +190,7 @@ def _render_history_table(records: list[dict]):
 
 def _render_demo_history():
     """Show demo chart with placeholder data."""
-    st.markdown("### 📈 Ví dụ: Biểu đồ Calo 7 Ngày")
+    st.markdown("### Ví dụ: Biểu đồ Calo 7 Ngày")
     demo_dates = [(datetime.now() - timedelta(days=i)).strftime("%d/%m") for i in range(6, -1, -1)]
     demo_calories = [1850, 2100, 1780, 2050, 1920, 2200, 1750]
     fig = daily_calorie_chart(demo_dates, demo_calories, 2000, "Ví dụ: Calo 7 Ngày (Demo)")

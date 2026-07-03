@@ -55,7 +55,7 @@ def download_dataset() -> str:
             "Get your key from: https://app.roboflow.com/settings/api"
         )
 
-    print("📥 Downloading dataset from Roboflow...")
+    print(" Downloading dataset from Roboflow...")
     from roboflow import Roboflow
 
     rf = Roboflow(api_key=ROBOFLOW_API_KEY)
@@ -64,8 +64,8 @@ def download_dataset() -> str:
     dataset = version.download("yolov8", location=str(ROOT_DIR / "datasets"))
 
     yaml_path = Path(dataset.location) / "data.yaml"
-    print(f"✅ Dataset downloaded to: {dataset.location}")
-    print(f"📄 Dataset config: {yaml_path}")
+    print(f" Dataset downloaded to: {dataset.location}")
+    print(f" Dataset config: {yaml_path}")
     return str(yaml_path)
 
 
@@ -80,7 +80,7 @@ def train(dataset_yaml: str) -> None:
     """
     from ultralytics import YOLO
 
-    print(f"\n🚀 Starting YOLOv8 training...")
+    print(f"\n Starting YOLOv8 training...")
     print(f"   Base model: {BASE_MODEL}")
     print(f"   Dataset: {dataset_yaml}")
     print(f"   Epochs: {EPOCHS}, Batch: {BATCH_SIZE}, ImgSize: {IMG_SIZE}")
@@ -125,7 +125,7 @@ def train(dataset_yaml: str) -> None:
         import shutil
         WEIGHTS_OUTPUT.mkdir(parents=True, exist_ok=True)
         shutil.copy2(best_pt, WEIGHTS_OUTPUT / "best.pt")
-        print(f"\n✅ Best weights saved to: {WEIGHTS_OUTPUT / 'best.pt'}")
+        print(f"\n Best weights saved to: {WEIGHTS_OUTPUT / 'best.pt'}")
 
     return results
 
@@ -138,10 +138,10 @@ def evaluate(dataset_yaml: str) -> None:
 
     model_path = WEIGHTS_OUTPUT / "best.pt"
     if not model_path.exists():
-        print(f"❌ Model not found at {model_path}. Train first.")
+        print(f" Model not found at {model_path}. Train first.")
         return
 
-    print(f"\n📊 Evaluating model on test set...")
+    print(f"\n Evaluating model on test set...")
     model = YOLO(str(model_path))
     metrics = model.val(
         data=dataset_yaml,
@@ -151,7 +151,7 @@ def evaluate(dataset_yaml: str) -> None:
         iou=0.45,
     )
 
-    print(f"\n📈 Evaluation Results:")
+    print(f"\n Evaluation Results:")
     print(f"   mAP50:    {metrics.box.map50:.4f}")
     print(f"   mAP50-95: {metrics.box.map:.4f}")
     print(f"   Precision: {metrics.box.mp:.4f}")
@@ -181,7 +181,7 @@ if __name__ == "__main__":
             yaml_path = str(candidates[0])
             print(f"Found dataset.yaml at: {yaml_path}")
         else:
-            print("❌ No dataset.yaml found. Run without --skip-download to download.")
+            print(" No dataset.yaml found. Run without --skip-download to download.")
             sys.exit(1)
     else:
         yaml_path = download_dataset()

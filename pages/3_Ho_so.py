@@ -22,7 +22,6 @@ from utils.visualization import macro_donut_chart
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Hồ sơ — NutriVision",
-    page_icon="👤",
     layout="wide",
 )
 
@@ -45,7 +44,7 @@ if "user_profile" not in st.session_state:
 
 
 def main():
-    st.markdown('<h1 class="page-title">👤 Hồ sơ Cá nhân</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="page-title"> Hồ sơ Cá nhân</h1>', unsafe_allow_html=True)
     st.markdown(
         "Nhập thông tin sinh trắc học để hệ thống tính toán "
         "**BMI, BMR, TDEE** và cá nhân hóa lời tư vấn dinh dưỡng."
@@ -57,7 +56,7 @@ def main():
 
     # ── Form ───────────────────────────────────────────────────────────────
     with col_form:
-        st.markdown("### 📝 Thông tin cơ bản")
+        st.markdown("### Thông tin cơ bản")
 
         with st.form("profile_form"):
             profile["name"] = st.text_input(
@@ -94,7 +93,7 @@ def main():
                 format="%.1f",
             )
 
-            st.markdown("#### 🏃 Mức độ vận động")
+            st.markdown("#### Mức độ vận động")
             profile["activity_level"] = st.select_slider(
                 "Chọn mức độ vận động",
                 options=[
@@ -108,7 +107,7 @@ def main():
                 label_visibility="collapsed",
             )
 
-            st.markdown("#### 🎯 Mục tiêu sức khỏe")
+            st.markdown("#### Mục tiêu sức khỏe")
             profile["goal"] = st.radio(
                 "Mục tiêu",
                 ["Giảm cân", "Giảm cân nhanh", "Giữ cân", "Tăng cơ", "Tăng cân"],
@@ -120,18 +119,18 @@ def main():
             )
 
             submitted = st.form_submit_button(
-                "💾 Lưu Hồ sơ",
+                " Lưu Hồ sơ",
                 type="primary",
                 use_container_width=True,
             )
             if submitted:
                 st.session_state.user_profile = profile
-                st.success("✅ Đã lưu thông tin hồ sơ!")
+                st.success(" Đã lưu thông tin hồ sơ!")
                 st.rerun()
 
     # ── Results ────────────────────────────────────────────────────────────
     with col_results:
-        st.markdown("### 📊 Chỉ số sức khỏe")
+        st.markdown("### Chỉ số sức khỏe")
 
         bmi = calculate_bmi(profile["weight_kg"], profile["height_cm"])
         bmi_cat, bmi_color = classify_bmi(bmi)
@@ -157,18 +156,18 @@ def main():
 
         col_m1, col_m2 = st.columns(2)
         col_m1.metric(
-            "🔥 BMR (Trao đổi cơ bản)",
+            " BMR (Trao đổi cơ bản)",
             f"{bmr:.0f} kcal/ngày",
             help="Năng lượng cơ thể cần để duy trì sự sống khi nghỉ ngơi hoàn toàn.",
         )
         col_m2.metric(
-            "⚡ TDEE (Tổng tiêu hao)",
+            " TDEE (Tổng tiêu hao)",
             f"{tdee:.0f} kcal/ngày",
             help="Tổng năng lượng cơ thể bạn đốt cháy mỗi ngày dựa trên mức vận động.",
         )
 
         st.markdown("---")
-        st.markdown(f"#### 🎯 Mục tiêu: **{profile['goal']}**")
+        st.markdown(f"#### Mục tiêu: **{profile['goal']}**")
 
         col_t1, col_t2 = st.columns(2)
         col_t1.metric(
@@ -182,12 +181,12 @@ def main():
         )
 
         st.markdown("---")
-        st.markdown("#### 🥗 Phân bổ Macro Khuyến nghị/ngày")
+        st.markdown("#### Phân bổ Macro Khuyến nghị/ngày")
 
         col_m, col_m2, col_m3 = st.columns(3)
-        col_m.metric("🌾 Carbohydrate", f"{macro_targets['carbohydrate_g']:.0f}g")
-        col_m2.metric("💪 Protein", f"{macro_targets['protein_g']:.0f}g")
-        col_m3.metric("🥑 Fat", f"{macro_targets['fat_g']:.0f}g")
+        col_m.metric(" Carbohydrate", f"{macro_targets['carbohydrate_g']:.0f}g")
+        col_m2.metric(" Protein", f"{macro_targets['protein_g']:.0f}g")
+        col_m3.metric(" Fat", f"{macro_targets['fat_g']:.0f}g")
 
         fig = macro_donut_chart(
             macro_targets["carbohydrate_g"] / 4,  # Placeholder: g → kcal
@@ -199,9 +198,9 @@ def main():
 
     # ── LLM API Config ─────────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### ⚙️ Cấu hình API")
+    st.markdown("### Cấu hình API")
 
-    with st.expander("🔑 Nhập API Key (không bắt buộc)", expanded=False):
+    with st.expander(" Nhập API Key (không bắt buộc)", expanded=False):
         st.info(
             "API key được lưu vào file `.env` LOCAL — **không bao giờ** upload lên cloud hay GitHub. "
             "Nếu đã có file `.env`, bỏ qua bước này."
@@ -221,23 +220,23 @@ def main():
 
         llm_provider = st.selectbox("Nhà cung cấp LLM", ["gemini", "openai"])
 
-        if st.button("💾 Lưu API Key vào .env", key="save_api"):
+        if st.button(" Lưu API Key vào .env", key="save_api"):
             _save_env_file(gemini_key, openai_key, llm_provider)
-            st.success("✅ Đã lưu vào file `.env`. Hãy **khởi động lại ứng dụng** để áp dụng.")
+            st.success(" Đã lưu vào file `.env`. Hãy **khởi động lại ứng dụng** để áp dụng.")
 
     # ── About project ──────────────────────────────────────────────────────
     st.markdown("---")
-    with st.expander("ℹ️ Về Dự án"):
+    with st.expander(" Về Dự án"):
         st.markdown("""
-        **NutriVision** là đồ án tốt nghiệp ngành Khoa học Máy tính.
+       **NutriVision** là đồ án tốt nghiệp ngành Khoa học Máy tính.
 
-        **Công nghệ sử dụng:**
-        - 🤖 **YOLOv8n** (Ultralytics) — Object Detection nhận diện 10 món ăn Việt Nam
-        - 🎯 **Human-in-the-Loop (HITL)** — Slider tinh chỉnh khẩu phần để giảm sai số
-        - 🧠 **Google Gemini / OpenAI GPT** — Sinh lời khuyên dinh dưỡng cá nhân hóa
-        - 🌐 **Streamlit** — Web App Python full-stack
+       **Công nghệ sử dụng:**
+        - **YOLOv8n** (Ultralytics) — Object Detection nhận diện 10 món ăn Việt Nam
+        - **Human-in-the-Loop (HITL)** — Slider tinh chỉnh khẩu phần để giảm sai số
+        - **Google Gemini / OpenAI GPT** — Sinh lời khuyên dinh dưỡng cá nhân hóa
+        - **Streamlit** — Web App Python full-stack
 
-        **Giới hạn:**
+       **Giới hạn:**
         Hệ thống không thay thế tư vấn y tế chuyên nghiệp.
         Độ chính xác calo phụ thuộc vào chất lượng ảnh và hiệu chỉnh HITL của người dùng.
         """)

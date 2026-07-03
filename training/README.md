@@ -1,4 +1,4 @@
-# 📌 Hướng dẫn Huấn luyện Mô hình YOLOv8
+# Hướng dẫn Huấn luyện Mô hình YOLOv8
 
 ## Tổng quan
 

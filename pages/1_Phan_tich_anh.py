@@ -39,7 +39,6 @@ from utils.visualization import macro_donut_chart, calorie_gauge, macro_progress
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Phân tích Ảnh — NutriVision",
-    page_icon="📸",
     layout="wide",
 )
 
@@ -90,7 +89,7 @@ def compute_biometrics(profile: dict) -> dict:
 
 # ─── Main Page ────────────────────────────────────────────────────────────────
 def main():
-    st.markdown('<h1 class="page-title">📸 Phân tích Bữa ăn</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="page-title"> Phân tích Bữa ăn</h1>', unsafe_allow_html=True)
     st.markdown(
         "Tải ảnh bữa ăn lên, hệ thống sẽ **tự động nhận diện món ăn** và "
         "tính lượng calo. Bạn có thể **tinh chỉnh khẩu phần** bằng thanh trượt.",
@@ -99,8 +98,8 @@ def main():
     st.markdown("---")
 
     # ── Step 1: Image Upload ────────────────────────────────────────────────
-    st.markdown("### 📤 Bước 1: Chọn ảnh bữa ăn")
-    upload_tab, camera_tab = st.tabs(["📁 Tải ảnh từ máy", "📷 Chụp từ camera"])
+    st.markdown("### Bước 1: Chọn ảnh bữa ăn")
+    upload_tab, camera_tab = st.tabs([" Tải ảnh từ máy", " Chụp từ camera"])
 
     uploaded_image = None
     with upload_tab:
@@ -119,7 +118,7 @@ def main():
             uploaded_image = Image.open(camera_image).convert("RGB")
 
     if uploaded_image is None:
-        st.info("⬆️ Hãy tải ảnh hoặc chụp ảnh bữa ăn để bắt đầu phân tích.")
+        st.info(" Hãy tải ảnh hoặc chụp ảnh bữa ăn để bắt đầu phân tích.")
         _render_sample_hint()
         return
 
@@ -130,12 +129,12 @@ def main():
     with col_info:
         w, h = uploaded_image.size
         st.markdown(f"""
-        **Thông tin ảnh:**
+       **Thông tin ảnh:**
         - Kích thước: `{w} × {h}` px
         - Chế độ màu: `{uploaded_image.mode}`
         """)
         analyze_btn = st.button(
-            "🔍 Phân tích Món ăn",
+            " Phân tích Món ăn",
             type="primary",
             use_container_width=True,
             key="analyze_btn",
@@ -143,13 +142,13 @@ def main():
 
     # ── Step 2: Run Detection ───────────────────────────────────────────────
     if analyze_btn:
-        with st.spinner("🔍 Đang nhận diện món ăn..."):
+        with st.spinner(" Đang nhận diện món ăn..."):
             detector = get_detector()
             detections = detector.detect(uploaded_image)
 
             if not detections:
                 st.warning(
-                    "⚠️ Không nhận diện được món ăn nào trong ảnh. "
+                    " Không nhận diện được món ăn nào trong ảnh. "
                     "Thử ảnh khác rõ hơn hoặc có món ăn nằm trong danh sách hỗ trợ."
                 )
                 return
@@ -166,14 +165,14 @@ def main():
                 if key not in st.session_state:
                     st.session_state.portion_multipliers[det.food_class] = 1.0
 
-        st.success(f"✅ Nhận diện xong! Tìm thấy **{len(detections)} món ăn**.")
+        st.success(f" Nhận diện xong! Tìm thấy **{len(detections)} món ăn**.")
 
     # ── Step 3: HITL — Show Results + Sliders ──────────────────────────────
     if st.session_state.analysis_done and st.session_state.detections:
         st.markdown("---")
-        st.markdown("### 🎯 Bước 2: Xem kết quả & Tinh chỉnh khẩu phần (HITL)")
+        st.markdown("### Bước 2: Xem kết quả & Tinh chỉnh khẩu phần (HITL)")
         st.markdown(
-            "> **🤖 Giới hạn của AI:** Mô hình nhận diện được tên và vị trí món ăn, "
+            "> ** Giới hạn của AI:** Mô hình nhận diện được tên và vị trí món ăn, "
             "nhưng **không thể ước lượng chính xác khối lượng** từ ảnh 2D. "
             "Hãy dùng thanh trượt bên dưới để điều chỉnh khẩu phần cho đúng thực tế."
         )
@@ -189,7 +188,7 @@ def main():
                 )
 
         with col_hitl:
-            st.markdown("#### 🍽️ Điều chỉnh Khẩu phần")
+            st.markdown("#### Điều chỉnh Khẩu phần")
             adjusted_items = []
 
             for det in st.session_state.detections:
@@ -220,10 +219,10 @@ def main():
                     if adj:
                         adjusted_items.append(adj)
                         cols = st.columns(4)
-                        cols[0].metric("🔥 Calo", f"{adj['calories']:.0f} kcal")
-                        cols[1].metric("🌾 Carb", f"{adj['carbohydrate_g']:.0f}g")
-                        cols[2].metric("💪 Protein", f"{adj['protein_g']:.0f}g")
-                        cols[3].metric("🥑 Fat", f"{adj['fat_g']:.0f}g")
+                        cols[0].metric(" Calo", f"{adj['calories']:.0f} kcal")
+                        cols[1].metric(" Carb", f"{adj['carbohydrate_g']:.0f}g")
+                        cols[2].metric(" Protein", f"{adj['protein_g']:.0f}g")
+                        cols[3].metric(" Fat", f"{adj['fat_g']:.0f}g")
                         st.caption(
                             f"Khẩu phần: **{ratio}x** chuẩn ≈ **{adj['portion_g']:.0f}g** "
                             f"(chuẩn: {adj['standard_portion_label']})"
@@ -235,7 +234,7 @@ def main():
             meal_totals = sum_meal_nutrition(adjusted_items)
             st.session_state.meal_nutrition = {
                 "foods": adjusted_items,
-                **meal_totals,
+               **meal_totals,
                 "total_calories": meal_totals["calories"],
             }
             _render_meal_summary(meal_totals, adjusted_items)
@@ -243,7 +242,7 @@ def main():
     # ── Step 4: LLM Advice ─────────────────────────────────────────────────
     if st.session_state.meal_nutrition:
         st.markdown("---")
-        st.markdown("### 🤖 Bước 3: Nhận Tư vấn Dinh dưỡng AI")
+        st.markdown("### Bước 3: Nhận Tư vấn Dinh dưỡng AI")
 
         profile = st.session_state.user_profile
         biometrics = compute_biometrics(profile)
@@ -256,39 +255,39 @@ def main():
         }
 
         # Show user info summary
-        with st.expander("👤 Thông tin cá nhân đang dùng", expanded=False):
+        with st.expander(" Thông tin cá nhân đang dùng", expanded=False):
             c1, c2, c3, c4 = st.columns(4)
             c1.metric("BMI", f"{biometrics['bmi']}", biometrics["bmi_category"])
             c2.metric("TDEE", f"{biometrics['tdee']:.0f} kcal/ngày")
             c3.metric("Mục tiêu calo", f"{goal_info['target_calories']:.0f} kcal")
             c4.metric("Mục tiêu", profile["goal"])
-            st.caption("📝 Thay đổi thông số tại trang **Hồ sơ**.")
+            st.caption(" Thay đổi thông số tại trang **Hồ sơ**.")
 
         col_btn, col_save = st.columns([1, 1])
         with col_btn:
             get_advice_btn = st.button(
-                "✨ Nhận tư vấn từ AI",
+                " Nhận tư vấn từ AI",
                 type="primary",
                 use_container_width=True,
                 key="advice_btn",
             )
         with col_save:
             save_btn = st.button(
-                "💾 Lưu bữa ăn vào Lịch sử",
+                " Lưu bữa ăn vào Lịch sử",
                 use_container_width=True,
                 key="save_btn",
             )
 
         if save_btn and st.session_state.meal_nutrition:
             _save_to_history(st.session_state.meal_nutrition)
-            st.success("✅ Đã lưu bữa ăn vào lịch sử!")
+            st.success(" Đã lưu bữa ăn vào lịch sử!")
 
         if get_advice_btn:
             llm = NutriLLM()
             advice_container = st.empty()
             full_advice = ""
 
-            with st.spinner("🤖 AI đang phân tích và viết tư vấn..."):
+            with st.spinner(" AI đang phân tích và viết tư vấn..."):
                 for chunk in llm.stream_advice(
                     biometrics,
                     st.session_state.meal_nutrition,
@@ -307,7 +306,7 @@ def main():
 def _render_meal_summary(meal_totals: dict, adjusted_items: list):
     """Render the meal summary section with charts."""
     st.markdown("---")
-    st.markdown("### 📊 Tóm tắt Dinh dưỡng Bữa ăn")
+    st.markdown("### Tóm tắt Dinh dưỡng Bữa ăn")
 
     profile = st.session_state.user_profile
     biometrics = compute_biometrics(profile)
@@ -333,7 +332,7 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
         st.plotly_chart(fig_bars, use_container_width=True, config={"displayModeBar": False})
 
     # Summary table
-    st.markdown("#### 📋 Chi tiết món ăn")
+    st.markdown("#### Chi tiết món ăn")
     table_data = []
     for item in adjusted_items:
         table_data.append({
@@ -346,7 +345,7 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
         })
 
     table_data.append({
-        "Món ăn": "**📊 TỔNG CỘNG**",
+        "Món ăn": "** TỔNG CỘNG**",
         "Khẩu phần": "—",
         "Calo (kcal)": f"**{meal_totals['calories']:.0f}**",
         "Carb (g)": f"**{meal_totals['carbohydrate_g']:.1f}**",
@@ -417,7 +416,7 @@ def _guess_meal_type() -> str:
 def _render_sample_hint():
     """Show sample food list when no image uploaded."""
     st.markdown("---")
-    st.markdown("#### 📋 Các món ăn được hỗ trợ nhận diện")
+    st.markdown("#### Các món ăn được hỗ trợ nhận diện")
     import config
 
     cols = st.columns(5)

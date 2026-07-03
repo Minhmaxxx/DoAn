@@ -1,4 +1,4 @@
-﻿# 📋 PLAN.md — Kế hoạch Thực hiện Đồ án Tốt nghiệp
+﻿# PLAN.md — Kế hoạch Thực hiện Đồ án Tốt nghiệp
 
 ## Tên đề tài
 **"Hệ thống Trợ lý Tư vấn Dinh dưỡng Cá nhân hóa kết hợp Thị giác Máy tính và Mô hình Ngôn ngữ Lớn"**
@@ -7,7 +7,7 @@
 
 ---
 
-## 👤 Thông tin Dự án
+## Thông tin Dự án
 
 | Thuộc tính | Chi tiết |
 |---|---|
@@ -21,7 +21,7 @@
 
 ---
 
-## 🏗️ Kiến trúc Hệ thống (System Architecture)
+## Kiến trúc Hệ thống (System Architecture)
 
 `
 Ảnh đầu vào
@@ -50,7 +50,7 @@ Lời khuyên dinh dưỡng cá nhân hóa (Tiếng Việt, Markdown)
 
 ---
 
-## 🗂️ Cấu trúc Thư mục Dự án
+## Cấu trúc Thư mục Dự án
 
 `
 DoAn/
@@ -93,7 +93,7 @@ DoAn/
 
 ---
 
-## 📅 Lịch trình 9 Tuần
+## Lịch trình 9 Tuần
 
 | Tuần | Nội dung | Deliverable |
 |---|---|---|
@@ -107,13 +107,13 @@ DoAn/
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Công nghệ | Lý do |
 |---|---|---|
 | Web Framework | Streamlit 1.35+ | FE+BE trong Python, deploy nhanh |
 | Object Detection | Ultralytics YOLOv8n | Nhẹ, chạy trên CPU, API thân thiện |
-| LLM | Google Gemini 1.5 Flash | Free tier, tiếng Việt tốt |
+| LLM | Google Google Gemini | Free tier, tiếng Việt tốt |
 | LLM backup | OpenAI GPT-4o-mini | Backup |
 | Data Labeling | Roboflow | Auto-label, augmentation |
 | Training | Google Colab (T4 GPU) | Miễn phí |

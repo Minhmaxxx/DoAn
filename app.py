@@ -14,7 +14,6 @@ import streamlit as st
 # ─── Page configuration (MUST be first Streamlit call) ───────────────────────
 st.set_page_config(
     page_title="NutriVision — Trợ lý Dinh dưỡng AI",
-    page_icon="🥗",
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
@@ -53,7 +52,7 @@ def main():
     # Header
     st.markdown("""
     <div class="hero-header">
-        <div class="hero-icon">🥗</div>
+        <div class="hero-icon"></div>
         <h1 class="hero-title">NutriVision</h1>
         <p class="hero-subtitle">
             Trợ lý Tư vấn Dinh dưỡng Cá nhân hóa<br>
@@ -70,7 +69,7 @@ def main():
     with col1:
         st.markdown("""
         <div class="feature-card">
-            <div class="feature-icon">📸</div>
+            <div class="feature-icon"></div>
             <h3>Nhận diện Món ăn</h3>
             <p>Chụp ảnh bữa ăn và hệ thống tự động nhận diện tên món, 
             số lượng bằng YOLOv8 được huấn luyện trên 10 món ăn Việt Nam.</p>
@@ -80,7 +79,7 @@ def main():
     with col2:
         st.markdown("""
         <div class="feature-card">
-            <div class="feature-icon">🎯</div>
+            <div class="feature-icon"></div>
             <h3>Tinh chỉnh Khẩu phần</h3>
             <p>Cơ chế Human-in-the-Loop giúp bạn điều chỉnh kích cỡ phần ăn 
             bằng thanh trượt để tính toán calo chính xác hơn.</p>
@@ -90,7 +89,7 @@ def main():
     with col3:
         st.markdown("""
         <div class="feature-card">
-            <div class="feature-icon">🤖</div>
+            <div class="feature-icon"></div>
             <h3>Tư vấn Cá nhân hóa</h3>
             <p>Trí tuệ nhân tạo Gemini/GPT phân tích dữ liệu sinh trắc học 
             và thực đơn của bạn, đưa ra lời khuyên bằng tiếng Việt.</p>
@@ -100,17 +99,17 @@ def main():
     st.markdown("---")
 
     # Quick stats
-    st.markdown("### 🚀 Bắt đầu ngay")
+    st.markdown("### Bắt đầu ngay")
     col_a, col_b = st.columns([2, 1])
 
     with col_a:
         st.info("""
-        **Hướng dẫn sử dụng:**
-        1. 👤 Điền **Hồ sơ cá nhân** → Trang *Hồ sơ*
-        2. 📸 Tải ảnh bữa ăn → Trang *Phân tích ảnh*
-        3. 🎯 Tinh chỉnh khẩu phần bằng slider
-        4. 🤖 Nhận lời khuyên dinh dưỡng từ AI
-        5. 📊 Xem lịch sử dinh dưỡng → Trang *Lịch sử*
+       **Hướng dẫn sử dụng:**
+        1.  Điền **Hồ sơ cá nhân** → Trang *Hồ sơ*
+        2.  Tải ảnh bữa ăn → Trang *Phân tích ảnh*
+        3.  Tinh chỉnh khẩu phần bằng slider
+        4.  Nhận lời khuyên dinh dưỡng từ AI
+        5.  Xem lịch sử dinh dưỡng → Trang *Lịch sử*
         """)
 
     with col_b:
@@ -133,7 +132,7 @@ def main():
 
     # System status
     st.markdown("---")
-    st.markdown("### ⚙️ Trạng thái Hệ thống")
+    st.markdown("### Trạng thái Hệ thống")
     _show_system_status()
 
 
@@ -147,24 +146,24 @@ def _show_system_status():
     with col1:
         model_exists = Path(config.MODEL_PATH).exists()
         if model_exists:
-            st.success("✅ Mô hình YOLOv8 đã sẵn sàng")
+            st.success(" Mô hình YOLOv8 đã sẵn sàng")
         else:
-            st.warning("⚠️ Mô hình YOLOv8 chưa huấn luyện — đang dùng Demo Mode")
+            st.warning(" Mô hình YOLOv8 chưa huấn luyện — đang dùng Demo Mode")
 
     with col2:
         has_key = bool(config.GEMINI_API_KEY or config.OPENAI_API_KEY)
         if has_key:
             provider = config.LLM_PROVIDER.capitalize()
-            st.success(f"✅ LLM API ({provider}) đã cấu hình")
+            st.success(f" LLM API ({provider}) đã cấu hình")
         else:
-            st.warning("⚠️ Chưa có API key LLM — tư vấn sẽ dùng nội dung mẫu")
+            st.warning(" Chưa có API key LLM — tư vấn sẽ dùng nội dung mẫu")
 
     with col3:
         db_exists = Path(config.NUTRITION_DB_PATH).exists()
         if db_exists:
-            st.success("✅ Cơ sở dữ liệu dinh dưỡng đã tải")
+            st.success(" Cơ sở dữ liệu dinh dưỡng đã tải")
         else:
-            st.error("❌ Không tìm thấy nutrition_db.json")
+            st.error(" Không tìm thấy nutrition_db.json")
 
 
 if __name__ == "__main__":

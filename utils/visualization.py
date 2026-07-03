@@ -93,7 +93,7 @@ def macro_donut_chart(
             x=0.5,
             font=dict(color="#e0e0e0"),
         ),
-        **CHART_LAYOUT,
+       **CHART_LAYOUT,
     )
     return fig
 
@@ -205,7 +205,7 @@ def daily_calorie_chart(
         ),
         legend=dict(font=dict(color="#e0e0e0")),
         bargap=0.25,
-        **CHART_LAYOUT,
+       **CHART_LAYOUT,
     )
     return fig
 
@@ -268,6 +268,6 @@ def macro_progress_bars(
         yaxis=dict(tickfont=dict(color="#e0e0e0", size=13)),
         height=220,
         legend=dict(font=dict(color="#e0e0e0")),
-        **CHART_LAYOUT,
+       **CHART_LAYOUT,
     )
     return fig

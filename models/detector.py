@@ -47,7 +47,7 @@ class Detection:
     ):
         self.food_class = food_class
         self.display_name = config.FOOD_DISPLAY_NAMES.get(food_class, food_class)
-        self.emoji = config.FOOD_EMOJIS.get(food_class, "🍽️")
+        self.emoji = config.FOOD_EMOJIS.get(food_class, "")
         self.confidence = confidence
         self.bbox = bbox  # (x1, y1, x2, y2)
 
@@ -80,7 +80,7 @@ def _load_model(model_path: str):
         model = YOLO(model_path)
         return model
     except Exception as e:
-        st.error(f"❌ Không thể tải mô hình YOLOv8: {e}")
+        st.error(f" Không thể tải mô hình YOLOv8: {e}")
         return None
 
 
@@ -103,8 +103,7 @@ class FoodDetector:
         if self.is_demo_mode:
             st.warning(
                 f"Demo Mode: Model not found at `{self.model_path}`. "
-                "Using simulated detections. After training, place `best.pt` in `models/weights/`.",
-                icon="🤖"
+                "Using simulated detections. After training, place `best.pt` in `models/weights/`."
             )
 
     def _ensure_model(self):
@@ -167,7 +166,7 @@ class FoodDetector:
             return detections
 
         except Exception as e:
-            st.error(f"❌ Lỗi trong quá trình nhận diện: {e}")
+            st.error(f" Lỗi trong quá trình nhận diện: {e}")
             return []
 
     def draw_boxes(
