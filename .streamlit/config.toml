@@ -5,3 +5,14 @@ backgroundColor = "#0e0e18"
 secondaryBackgroundColor = "#1a1a2e"
 textColor = "#e0e0e0"
 font = "sans serif"
+[server]
+headless = false
+address = "localhost"
+port = 8501
+
+[browser]
+gatherUsageStats = false
+
+[runner]
+# Force UTF-8 on Windows
+magicEnabled = true

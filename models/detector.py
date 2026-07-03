@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 models/detector.py — YOLOv8 Food Detector Wrapper
 Wraps Ultralytics YOLOv8 with Streamlit caching and a clean detection API.
@@ -101,9 +102,8 @@ class FoodDetector:
 
         if self.is_demo_mode:
             st.warning(
-                "⚠️ **Chế độ Demo:** Chưa tìm thấy file mô hình đã huấn luyện tại "
-                f"`{self.model_path}`. Hệ thống đang dùng dữ liệu giả lập để minh họa. "
-                "Sau khi huấn luyện xong, đặt file `best.pt` vào thư mục `models/weights/`.",
+                f"Demo Mode: Model not found at `{self.model_path}`. "
+                "Using simulated detections. After training, place `best.pt` in `models/weights/`.",
                 icon="🤖"
             )
 
