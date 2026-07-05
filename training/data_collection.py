@@ -75,28 +75,33 @@ def scrape_images(food_class: str, count: int = 350, output_dir: Path = None) ->
         temp_dir = output_dir / "temp"
         temp_dir.mkdir(exist_ok=True)
 
+        # Try Bing first as it is much more stable than Google on local machines
         try:
-            crawler = GoogleImageCrawler(
+            crawler = BingImageCrawler(
                 storage={"root_dir": str(temp_dir)},
-                log_level=50,  # Suppress verbose logs
+                log_level=50,
             )
-            crawler.crawl(
-                keyword=query,
-                max_num=per_query,
-                min_size=(224, 224),
-                filters={"type": "photo"},
-            )
+            crawler.crawl(keyword=query, max_num=per_query, min_size=(224, 224))
         except Exception as e:
-            print(f"    Google failed ({e}), trying Bing...")
+            print(f"    Bing failed: {e}")
+
+        # If Bing didn't download enough images, try Google as backup
+        downloaded_files = list(temp_dir.glob("*"))
+        if len(downloaded_files) < per_query * 0.5:
+            print(f"    Bing only got {len(downloaded_files)} images. Trying Google as backup...")
             try:
-                crawler = BingImageCrawler(
+                crawler = GoogleImageCrawler(
                     storage={"root_dir": str(temp_dir)},
                     log_level=50,
                 )
-                crawler.crawl(keyword=query, max_num=per_query, min_size=(224, 224))
-            except Exception as e2:
-                print(f"    Bing also failed: {e2}")
-                continue
+                crawler.crawl(
+                    keyword=query,
+                    max_num=per_query - len(downloaded_files),
+                    min_size=(224, 224),
+                    filters={"type": "photo"},
+                )
+            except Exception as e:
+                print(f"    Google failed: {e}")
 
         # Move and deduplicate images
         for img_file in temp_dir.iterdir():
