@@ -14,10 +14,16 @@ import hashlib
 import os
 import shutil
 import sys
+import io
+import time
+import random
+import concurrent.futures
 from pathlib import Path
 
 from PIL import Image
 from tqdm import tqdm
+import requests
+from duckduckgo_search import DDGS
 
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
@@ -59,70 +65,81 @@ def scrape_images(food_class: str, count: int = 350, output_dir: Path = None) ->
         output_dir = ROOT_DIR / "datasets" / "raw" / food_class
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Count existing images in output_dir
+    existing_images = list(output_dir.glob("*.jpg")) + list(output_dir.glob("*.png")) + list(output_dir.glob("*.jpeg"))
+    if len(existing_images) >= count:
+        print(f"   [SKIP] '{food_class}' already has {len(existing_images)} images. skipping.")
+        return len(existing_images)
+
+    needed_count = count - len(existing_images)
     queries = FOOD_QUERIES.get(food_class, [food_class])
-    per_query = count // len(queries) + 1
+    per_query = needed_count // len(queries) + 1
 
-    total_saved = 0
+    print(f"   Target needed for '{food_class}': {needed_count} images ({per_query} per query)")
+    total_saved = len(existing_images)
+    ddgs = DDGS()
 
-    try:
-        from icrawler.builtin import GoogleImageCrawler, BingImageCrawler
-    except ImportError:
-        print(" icrawler not installed. Run: pip install icrawler")
-        return 0
-
-    for query in queries:
-        print(f"   Query: '{query}'")
-        temp_dir = output_dir / "temp"
-        temp_dir.mkdir(exist_ok=True)
-
-        # Try Bing first as it is much more stable than Google on local machines
+    # Create a helper function to download a single image
+    def download_image(url):
         try:
-            crawler = BingImageCrawler(
-                storage={"root_dir": str(temp_dir)},
-                log_level=50,
-            )
-            crawler.crawl(keyword=query, max_num=per_query, min_size=(224, 224))
-        except Exception as e:
-            print(f"    Bing failed: {e}")
-
-        # If Bing didn't download enough images, try Google as backup
-        downloaded_files = list(temp_dir.glob("*"))
-        if len(downloaded_files) < per_query * 0.5:
-            print(f"    Bing only got {len(downloaded_files)} images. Trying Google as backup...")
-            try:
-                crawler = GoogleImageCrawler(
-                    storage={"root_dir": str(temp_dir)},
-                    log_level=50,
-                )
-                crawler.crawl(
-                    keyword=query,
-                    max_num=per_query - len(downloaded_files),
-                    min_size=(224, 224),
-                    filters={"type": "photo"},
-                )
-            except Exception as e:
-                print(f"    Google failed: {e}")
-
-        # Move and deduplicate images
-        for img_file in temp_dir.iterdir():
-            if not img_file.suffix.lower() in [".jpg", ".jpeg", ".png", ".webp"]:
-                continue
-            try:
-                img = Image.open(img_file).convert("RGB")
-                # Hash for dedup
+            # Add a small user-agent to request
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
+            res = requests.get(url, headers=headers, timeout=6)
+            if res.status_code == 200:
+                img = Image.open(io.BytesIO(res.content)).convert("RGB")
                 img_hash = hashlib.md5(img.tobytes()).hexdigest()[:12]
                 dest = output_dir / f"{food_class}_{img_hash}.jpg"
                 if not dest.exists():
                     img.save(dest, "JPEG", quality=90)
+                    return True
+        except Exception:
+            pass
+        return False
+
+    for query in queries:
+        print(f"   Query: '{query}'")
+        results = []
+        
+        # Add random delay to prevent rate limits
+        delay = random.uniform(2.5, 4.5)
+        time.sleep(delay)
+
+        # Retry loop for DDG search rate limit
+        for attempt in range(4):
+            try:
+                results = list(ddgs.images(query, max_results=per_query))
+                break
+            except Exception as e:
+                err_str = str(e).lower()
+                if "403" in err_str or "ratelimit" in err_str:
+                    wait_time = (attempt + 1) * 15
+                    print(f"    [RATELIMIT] Rate limited on '{query}'. Sleeping {wait_time}s before retry (Attempt {attempt+1}/4)...")
+                    time.sleep(wait_time)
+                else:
+                    print(f"    DDG search failed for '{query}': {e}")
+                    break
+        else:
+            print(f"    Failed to query '{query}' after retries. Moving to next query.")
+            continue
+
+        if not results:
+            continue
+
+        urls = [r['image'] for r in results]
+        
+        # Download images concurrently for speed
+        saved_this_query = 0
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            futures = [executor.submit(download_image, url) for url in urls]
+            for future in concurrent.futures.as_completed(futures):
+                if future.result():
                     total_saved += 1
-            except Exception:
-                pass
-            finally:
-                img_file.unlink(missing_ok=True)
+                    saved_this_query += 1
+        print(f"    -> Downloaded {saved_this_query} new images.")
 
-        shutil.rmtree(temp_dir, ignore_errors=True)
-
-    print(f"   Saved {total_saved} unique images for '{food_class}'")
+    print(f"   Saved {total_saved} total unique images for '{food_class}'")
     return total_saved
 
 
