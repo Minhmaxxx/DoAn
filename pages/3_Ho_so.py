@@ -44,6 +44,15 @@ if "user_profile" not in st.session_state:
 
 
 def main():
+    if st.session_state.pop("clear_demo_credentials", False):
+        for key in (
+            "llm_runtime_config",
+            "demo_gemini_api_key",
+            "demo_openai_api_key",
+            "demo_llm_provider",
+        ):
+            st.session_state.pop(key, None)
+
     st.markdown('<h1 class="page-title"> Hồ sơ Cá nhân</h1>', unsafe_allow_html=True)
     st.markdown(
         "Nhập thông tin sinh trắc học để hệ thống tính toán "
@@ -189,9 +198,9 @@ def main():
         col_m3.metric(" Fat", f"{macro_targets['fat_g']:.0f}g")
 
         fig = macro_donut_chart(
-            macro_targets["carbohydrate_g"] / 4,  # Placeholder: g → kcal
-            macro_targets["protein_g"] / 4,
-            macro_targets["fat_g"] / 9,
+            macro_targets["carbohydrate_g"],
+            macro_targets["protein_g"],
+            macro_targets["fat_g"],
             title=f"Phân bổ Macro — {profile['goal']}",
         )
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
@@ -200,10 +209,10 @@ def main():
     st.markdown("---")
     st.markdown("### Cấu hình API")
 
-    with st.expander(" Nhập API Key (không bắt buộc)", expanded=False):
+    with st.expander(" Nhập API Key tạm thời (không bắt buộc)", expanded=False):
         st.info(
-            "API key được lưu vào file `.env` LOCAL — **không bao giờ** upload lên cloud hay GitHub. "
-            "Nếu đã có file `.env`, bỏ qua bước này."
+            "API key chỉ được giữ trong phiên Streamlit hiện tại và không được ghi vào file. "
+            "Key sẽ mất khi bạn refresh hoặc đóng phiên demo."
         )
         col_k1, col_k2 = st.columns(2)
         gemini_key = col_k1.text_input(
@@ -211,18 +220,36 @@ def main():
             type="password",
             placeholder="AIza...",
             help="Lấy miễn phí tại aistudio.google.com",
+            key="demo_gemini_api_key",
         )
         openai_key = col_k2.text_input(
             "OpenAI API Key (tuỳ chọn)",
             type="password",
             placeholder="sk-...",
+            key="demo_openai_api_key",
         )
 
-        llm_provider = st.selectbox("Nhà cung cấp LLM", ["gemini", "openai"])
+        runtime_config = st.session_state.get("llm_runtime_config", {})
+        provider_options = ["gemini", "openai"]
+        default_provider = runtime_config.get("provider", config.LLM_PROVIDER)
+        llm_provider = st.selectbox(
+            "Nhà cung cấp LLM",
+            provider_options,
+            index=provider_options.index(default_provider) if default_provider in provider_options else 0,
+            key="demo_llm_provider",
+        )
 
-        if st.button(" Lưu API Key vào .env", key="save_api"):
-            _save_env_file(gemini_key, openai_key, llm_provider)
-            st.success(" Đã lưu vào file `.env`. Hãy **khởi động lại ứng dụng** để áp dụng.")
+        if st.button(" Dùng API Key trong phiên demo", key="save_api"):
+            st.session_state.llm_runtime_config = {
+                "provider": llm_provider,
+                "gemini_api_key": gemini_key.strip(),
+                "openai_api_key": openai_key.strip(),
+            }
+            st.success("API key đã được dùng cho phiên demo hiện tại.")
+
+        if st.button(" Xóa API Key khỏi phiên demo", key="clear_api"):
+            st.session_state.clear_demo_credentials = True
+            st.rerun()
 
     # ── About project ──────────────────────────────────────────────────────
     st.markdown("---")
@@ -259,24 +286,6 @@ def _render_bmi_scale(bmi: float):
         <div class="bmi-indicator" style="left: {pct}%;">▲</div>
     </div>
     """, unsafe_allow_html=True)
-
-
-def _save_env_file(gemini_key: str, openai_key: str, provider: str):
-    """Write API keys to .env file."""
-    env_path = ROOT_DIR / ".env"
-    lines = [
-        f"LLM_PROVIDER={provider}\n",
-    ]
-    if gemini_key:
-        lines.append(f"GEMINI_API_KEY={gemini_key}\n")
-    if openai_key:
-        lines.append(f"OPENAI_API_KEY={openai_key}\n")
-
-    try:
-        with open(env_path, "w", encoding="utf-8") as f:
-            f.writelines(lines)
-    except Exception as e:
-        st.error(f"Lỗi ghi file .env: {e}")
 
 
 if __name__ == "__main__":

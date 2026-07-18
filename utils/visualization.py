@@ -57,7 +57,6 @@ def macro_donut_chart(
         protein_g * 4,
         fat_g * 9,       # 9 kcal/g
     ]
-    gram_values = [carb_g, protein_g, fat_g]
     colors = [MACRO_COLORS[l] for l in labels]
 
     fig = go.Figure(data=[go.Pie(
@@ -103,7 +102,7 @@ def macro_donut_chart(
 def calorie_gauge(
     current_cal: float,
     target_cal: float,
-    title: str = "Lượng Calo Hôm Nay",
+    title: str = "Calo Bữa Ăn",
 ) -> go.Figure:
     """
     Create a gauge chart showing calorie progress vs target.
@@ -215,6 +214,7 @@ def daily_calorie_chart(
 def macro_progress_bars(
     meal_totals: dict,
     macro_targets: dict,
+    title: str = "Tiến độ Macro (%)",
 ) -> go.Figure:
     """
     Horizontal bar chart comparing eaten macros vs daily targets.
@@ -258,7 +258,7 @@ def macro_progress_bars(
 
     fig.update_layout(
         barmode="overlay",
-        title=dict(text="Tiến độ Macro Hôm Nay (%)", font=dict(size=15, color="#e0e0e0"), x=0.5),
+        title=dict(text=title, font=dict(size=15, color="#e0e0e0"), x=0.5),
         xaxis=dict(
             range=[0, 120],
             title="%",

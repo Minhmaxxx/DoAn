@@ -52,7 +52,7 @@ if css_path.exists():
 for key, default in [
     ("detections", []),
     ("annotated_image", None),
-    ("portion_multipliers", {}),
+    ("detection_slider_keys", []),
     ("meal_nutrition", None),
     ("llm_advice", None),
     ("analysis_done", False),
@@ -159,11 +159,14 @@ def main():
             st.session_state.analysis_done = True
             st.session_state.llm_advice = None  # Reset old advice
 
-            # Initialize sliders at 1.0x for each detected food
-            for det in detections:
-                key = f"slider_{det.food_class}"
-                if key not in st.session_state:
-                    st.session_state.portion_multipliers[det.food_class] = 1.0
+            # Each detection needs its own portion, including duplicate dishes.
+            for slider_key in st.session_state.detection_slider_keys:
+                st.session_state.pop(slider_key, None)
+            st.session_state.detection_slider_keys = []
+            for detection_index, _ in enumerate(detections):
+                slider_key = f"portion_detection_{detection_index}"
+                st.session_state[slider_key] = 1.0
+                st.session_state.detection_slider_keys.append(slider_key)
 
         st.success(f" Nhận diện xong! Tìm thấy **{len(detections)} món ăn**.")
 
@@ -191,7 +194,7 @@ def main():
             st.markdown("#### Điều chỉnh Khẩu phần")
             adjusted_items = []
 
-            for det in st.session_state.detections:
+            for detection_index, det in enumerate(st.session_state.detections):
                 with st.container():
                     st.markdown(f"""
                     <div class="food-card">
@@ -201,18 +204,20 @@ def main():
                     </div>
                     """, unsafe_allow_html=True)
 
+                    slider_key = f"portion_detection_{detection_index}"
+                    if slider_key not in st.session_state:
+                        st.session_state[slider_key] = 1.0
+
                     ratio = st.slider(
                         f"Khẩu phần ({det.display_name})",
                         min_value=config.SLIDER_MIN,
                         max_value=config.SLIDER_MAX,
-                        value=st.session_state.portion_multipliers.get(det.food_class, 1.0),
                         step=config.SLIDER_STEP,
                         format="%.2fx (%.0f%%)",
-                        key=f"slider_{det.food_class}_{id(det)}",
+                        key=slider_key,
                         label_visibility="collapsed",
                         help=f"1.0x = 1 khẩu phần chuẩn. Điều chỉnh nếu phần ăn của bạn nhiều hoặc ít hơn.",
                     )
-                    st.session_state.portion_multipliers[det.food_class] = ratio
 
                     # Calculate adjusted nutrition
                     adj = calculate_adjusted_nutrition(det.food_class, ratio)
@@ -283,7 +288,12 @@ def main():
             st.success(" Đã lưu bữa ăn vào lịch sử!")
 
         if get_advice_btn:
-            llm = NutriLLM()
+            runtime_config = st.session_state.get("llm_runtime_config", {})
+            llm = NutriLLM(
+                provider=runtime_config.get("provider"),
+                gemini_api_key=runtime_config.get("gemini_api_key"),
+                openai_api_key=runtime_config.get("openai_api_key"),
+            )
             advice_container = st.empty()
             full_advice = ""
 
@@ -316,7 +326,11 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
     col_gauge, col_donut, col_bars = st.columns(3)
 
     with col_gauge:
-        fig_gauge = calorie_gauge(meal_totals["calories"], goal_info["target_calories"])
+        fig_gauge = calorie_gauge(
+            meal_totals["calories"],
+            goal_info["target_calories"],
+            title="Calo Bữa Ăn",
+        )
         st.plotly_chart(fig_gauge, use_container_width=True, config={"displayModeBar": False})
 
     with col_donut:
@@ -328,7 +342,11 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
         st.plotly_chart(fig_donut, use_container_width=True, config={"displayModeBar": False})
 
     with col_bars:
-        fig_bars = macro_progress_bars(meal_totals, macro_targets)
+        fig_bars = macro_progress_bars(
+            meal_totals,
+            macro_targets,
+            title="Tiến độ Macro Bữa Ăn so với Mục tiêu Ngày",
+        )
         st.plotly_chart(fig_bars, use_container_width=True, config={"displayModeBar": False})
 
     # Summary table

@@ -110,22 +110,33 @@ class NutriLLM:
     ...     print(chunk, end="")
     """
 
-    def __init__(self):
-        self.provider = config.LLM_PROVIDER
+    def __init__(
+        self,
+        provider: Optional[str] = None,
+        gemini_api_key: Optional[str] = None,
+        openai_api_key: Optional[str] = None,
+    ):
+        self.provider = provider or config.LLM_PROVIDER
+        self.gemini_api_key = (
+            config.GEMINI_API_KEY if gemini_api_key is None else gemini_api_key
+        )
+        self.openai_api_key = (
+            config.OPENAI_API_KEY if openai_api_key is None else openai_api_key
+        )
         self._gemini_model = None
         self._openai_client = None
 
     def is_configured(self) -> bool:
         """Check if an API key is available."""
         if self.provider == "gemini":
-            return bool(config.GEMINI_API_KEY)
-        return bool(config.OPENAI_API_KEY)
+            return bool(self.gemini_api_key)
+        return bool(self.openai_api_key)
 
     def _get_gemini(self):
         """Lazy-init Gemini client."""
         if self._gemini_model is None:
             import google.generativeai as genai
-            genai.configure(api_key=config.GEMINI_API_KEY)
+            genai.configure(api_key=self.gemini_api_key)
             self._gemini_model = genai.GenerativeModel(
                 model_name=config.GEMINI_MODEL,
                 system_instruction=SYSTEM_PROMPT,
@@ -140,7 +151,7 @@ class NutriLLM:
         """Lazy-init OpenAI client."""
         if self._openai_client is None:
             from openai import OpenAI
-            self._openai_client = OpenAI(api_key=config.OPENAI_API_KEY)
+            self._openai_client = OpenAI(api_key=self.openai_api_key)
         return self._openai_client
 
     def generate_advice(
@@ -184,7 +195,7 @@ class NutriLLM:
         except Exception as e:
             return (
                 f" **Lỗi kết nối AI:** {e}\n\n"
-                "Vui lòng kiểm tra API key trong file `.env` và thử lại."
+                "Vui lòng kiểm tra API key và thử lại."
             )
 
     def stream_advice(
@@ -244,7 +255,7 @@ class NutriLLM:
         return f"""
 ## Phân tích bữa ăn hiện tại
 
->  *Đây là phân tích mẫu. Để nhận tư vấn cá nhân hóa từ AI, hãy thêm API key vào file `.env`.*
+>  *Đây là phân tích mẫu. Để nhận tư vấn cá nhân hóa từ AI, hãy nhập API key tạm thời tại trang Hồ sơ.*
 
 Bữa ăn của bạn cung cấp **{total_cal} kcal**, chiếm 
 **{round(total_cal/target_cal*100, 1)}%** mục tiêu calo ngày ({target_cal} kcal).

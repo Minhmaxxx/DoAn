@@ -151,9 +151,15 @@ def _show_system_status():
             st.warning(" Mô hình YOLOv8 chưa huấn luyện — đang dùng Demo Mode")
 
     with col2:
-        has_key = bool(config.GEMINI_API_KEY or config.OPENAI_API_KEY)
+        runtime_config = st.session_state.get("llm_runtime_config", {})
+        has_key = bool(
+            runtime_config.get("gemini_api_key")
+            or runtime_config.get("openai_api_key")
+            or config.GEMINI_API_KEY
+            or config.OPENAI_API_KEY
+        )
         if has_key:
-            provider = config.LLM_PROVIDER.capitalize()
+            provider = runtime_config.get("provider", config.LLM_PROVIDER).capitalize()
             st.success(f" LLM API ({provider}) đã cấu hình")
         else:
             st.warning(" Chưa có API key LLM — tư vấn sẽ dùng nội dung mẫu")
