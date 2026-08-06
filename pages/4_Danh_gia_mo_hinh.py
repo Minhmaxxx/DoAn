@@ -82,7 +82,7 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    st.plotly_chart(metric_chart(overall), use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(metric_chart(overall), width="stretch", config={"displayModeBar": False})
 
     display = overall[
         [
@@ -99,14 +99,14 @@ def main() -> None:
     for column in ["Precision", "Recall", "mAP50", "mAP50-95"]:
         display[column] = display[column].map(lambda value: f"{value:.4f}")
     display["ms/ảnh CPU"] = display["ms/ảnh CPU"].map(lambda value: f"{value:.2f}")
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width="stretch", hide_index=True)
 
     st.markdown("### Phân tích theo lớp")
     class_name = st.selectbox("Chọn lớp món ăn", per_class["class_name"].drop_duplicates().tolist())
     class_rows = per_class[per_class["class_name"] == class_name].copy()
     class_rows = class_rows[["model", "precision", "recall", "mAP50", "mAP50_95"]]
     class_rows.columns = ["Model", "Precision", "Recall", "mAP50", "mAP50-95"]
-    st.dataframe(class_rows.style.format(precision=4), use_container_width=True, hide_index=True)
+    st.dataframe(class_rows.style.format(precision=4), width="stretch", hide_index=True)
 
     with st.expander("Phương pháp và giới hạn"):
         st.markdown(

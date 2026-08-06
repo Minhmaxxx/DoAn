@@ -455,11 +455,11 @@ Các phase dưới đây được thực hiện tuần tự. Tổng khối lư�
 
 ### Phase B - Ổn định môi trường và runtime
 
-- [ ] Tạo môi trường Python 3.11 sạch, cài `pip install -r requirements.txt` và ghi phiên bản thực tế đã dùng.
-- [ ] Sửa mọi lỗi import; trạng thái hiện tại cần cài `numpy` để `utils/nutrition.py` và `utils/visualization.py` hoạt động.
-- [ ] Chạy `python test_imports.py`; lệnh phải pass và trả exit code khác 0 khi có lỗi.
-- [ ] Chạy `python -m streamlit run app.py --server.port 8501` và mở đủ các trang `app.py`, phân tích ảnh, lịch sử, hồ sơ và đánh giá model.
-- [ ] Xác nhận app tải `Baseline B` thật, checksum hợp lệ và `ENABLE_RANDOM_DEMO` không bật trong môi trường demo/release.
+- [x] Tạo `.venv311` với Python 3.11.9, cài `pip install -r requirements.txt` và kiểm tra dependency không xung đột.
+- [x] Sửa mọi lỗi import; `numpy` đã được cài và `utils/nutrition.py` cùng `utils/visualization.py` hoạt động.
+- [x] Chạy `python test_imports.py`; lệnh pass và trả exit code khác 0 khi có lỗi.
+- [x] Khởi động Streamlit bằng Python 3.11, health endpoint trả `ok`, và kiểm tra render đủ các trang `app.py`, phân tích ảnh, lịch sử, hồ sơ và đánh giá model.
+- [x] Xác nhận app tải `Baseline B` thật, checksum hợp lệ, `ENABLE_RANDOM_DEMO` không bật và inference ảnh test trả về detection hợp lệ.
 
 **Hoàn thành khi:** Một môi trường sạch chạy được app mà không cần sửa tay dependency hay thay checkpoint.
 
@@ -476,7 +476,7 @@ Hồ sơ -> Upload/camera -> YOLO Baseline B -> Mapping 12 lớp
 - [ ] Kiểm tra ảnh có một món, nhiều món, không có món, ảnh sai định dạng và ảnh quá lớn.
 - [ ] Hiển thị thông báo rõ ràng khi checkpoint thiếu/sai, không nhận diện được món, API key không có hoặc LLM lỗi mạng.
 - [ ] Kiểm tra slider tại `0.25x`, `1.0x`, `3.0x`; tổng calo và macro phải thay đổi đúng theo khẩu phần.
-- [ ] Quyết định history cho bản public: lưu theo user/session riêng hoặc chỉ lưu session; không dùng chung `data/meal_history.json` giữa người dùng.
+- [x] History bản public chỉ lưu trong Streamlit session; không đọc/ghi `data/meal_history.json` dùng chung giữa người dùng.
 - [ ] Kiểm tra giao diện desktop và điện thoại, nhất là upload, bảng dinh dưỡng, tư vấn dài và biểu đồ.
 
 **Hoàn thành khi:** Người dùng mới có thể đi hết luồng trên mà không cần biết cấu trúc dự án hoặc chỉnh file cấu hình.
@@ -511,4 +511,4 @@ Hồ sơ -> Upload/camera -> YOLO Baseline B -> Mapping 12 lớp
 
 ---
 
-*Phiên bản: 2.2 | Cập nhật: 2026-08-06 | Trạng thái: Baseline B và dashboard benchmark 12 lớp đã tích hợp; bắt đầu giai đoạn hoàn thiện sản phẩm.*
+*Phiên bản: 2.3 | Cập nhật: 2026-08-06 | Trạng thái: Phase B hoàn tất trên Python 3.11; Phase C đang hoàn thiện luồng người dùng và privacy.*

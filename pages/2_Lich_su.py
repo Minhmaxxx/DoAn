@@ -3,7 +3,6 @@ pages/2_Lich_su.py — Meal History & Analytics
 Shows historical meal logs with daily calorie trends, macro charts and summaries.
 """
 
-import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -14,7 +13,6 @@ import streamlit as st
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-import config
 from utils.nutrition import calculate_goal_calories, calculate_bmr, calculate_tdee
 from utils.visualization import daily_calorie_chart, macro_donut_chart
 from utils.state import initialize_session_state
@@ -35,22 +33,8 @@ initialize_session_state()
 
 
 def load_all_history() -> list[dict]:
-    """Load history from both session state and disk."""
-    records = list(st.session_state.meal_history)
-
-    if config.MEAL_HISTORY_PATH.exists():
-        try:
-            with open(config.MEAL_HISTORY_PATH, "r", encoding="utf-8") as f:
-                disk_records = json.load(f)
-            # Merge, avoiding duplicates by timestamp
-            existing_ts = {r["timestamp"] for r in records}
-            for r in disk_records:
-                if r["timestamp"] not in existing_ts:
-                    records.append(r)
-        except Exception:
-            pass
-
-    return sorted(records, key=lambda r: r["timestamp"], reverse=True)
+    """Return meal history belonging only to the active browser session."""
+    return sorted(st.session_state.meal_history, key=lambda r: r["timestamp"], reverse=True)
 
 
 def main():
@@ -63,7 +47,8 @@ def main():
     if not history:
         st.info(
             " Chưa có dữ liệu lịch sử. "
-            "Hãy phân tích một bữa ăn và lưu lại tại trang **Phân tích ảnh**."
+            "Hãy phân tích một bữa ăn và lưu lại tại trang **Phân tích ảnh**. "
+            "Lịch sử chỉ được lưu trong phiên trình duyệt hiện tại."
         )
         _render_demo_history()
         return
@@ -100,7 +85,7 @@ def main():
 
     display_dates = [(datetime.now() - timedelta(days=i)).strftime("%d/%m") for i in range(6, -1, -1)]
     fig_hist = daily_calorie_chart(display_dates, calories_7, target_cal)
-    st.plotly_chart(fig_hist, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_hist, width="stretch", config={"displayModeBar": False})
 
     st.markdown("---")
 
@@ -132,7 +117,7 @@ def main():
         with col_macro:
             fig_macro = macro_donut_chart(total_carb, total_protein, total_fat,
                                           title="Tổng Macro Tuần Này")
-            st.plotly_chart(fig_macro, use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(fig_macro, width="stretch", config={"displayModeBar": False})
         with col_text:
             st.markdown("#### Tổng kết 7 ngày")
             avg_cal = sum(calories_7) / 7
@@ -148,11 +133,9 @@ def main():
     # ── Clear History ────────────────────────────────────────────────────────
     st.markdown("---")
     with st.expander(" Xóa lịch sử"):
-        st.warning("Hành động này sẽ xóa toàn bộ lịch sử bữa ăn và không thể hoàn tác.")
+        st.warning("Hành động này sẽ xóa lịch sử của phiên hiện tại và không thể hoàn tác.")
         if st.button(" Xóa tất cả lịch sử", type="secondary"):
             st.session_state.meal_history = []
-            if config.MEAL_HISTORY_PATH.exists():
-                config.MEAL_HISTORY_PATH.unlink()
             st.success("Đã xóa lịch sử.")
             st.rerun()
 
@@ -179,7 +162,7 @@ def _render_history_table(records: list[dict]):
         })
 
     df = pd.DataFrame(rows)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width="stretch", hide_index=True)
 
 
 def _render_demo_history():
@@ -188,7 +171,7 @@ def _render_demo_history():
     demo_dates = [(datetime.now() - timedelta(days=i)).strftime("%d/%m") for i in range(6, -1, -1)]
     demo_calories = [1850, 2100, 1780, 2050, 1920, 2200, 1750]
     fig = daily_calorie_chart(demo_dates, demo_calories, 2000, "Ví dụ: Calo 7 Ngày (Demo)")
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
     st.caption("_Dữ liệu trên chỉ là ví dụ minh họa._")
 
 

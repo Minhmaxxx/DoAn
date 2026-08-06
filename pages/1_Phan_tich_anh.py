@@ -152,7 +152,7 @@ def main():
     # Preview
     col_img, col_info = st.columns([1, 1])
     with col_img:
-        st.image(uploaded_image, caption="Ảnh gốc", use_container_width=True)
+        st.image(uploaded_image, caption="Ảnh gốc", width="stretch")
     with col_info:
         w, h = uploaded_image.size
         st.markdown(f"""
@@ -163,7 +163,7 @@ def main():
         analyze_btn = st.button(
             " Phân tích Món ăn",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             key="analyze_btn",
         )
 
@@ -219,7 +219,7 @@ def main():
                 st.image(
                     st.session_state.annotated_image,
                     caption="Kết quả nhận diện (Bounding Boxes)",
-                    use_container_width=True,
+                    width="stretch",
                 )
 
         with col_hitl:
@@ -309,13 +309,13 @@ def main():
             get_advice_btn = st.button(
                 " Nhận tư vấn từ AI",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 key="advice_btn",
             )
         with col_save:
             save_btn = st.button(
                 " Lưu bữa ăn vào Lịch sử",
-                use_container_width=True,
+                width="stretch",
                 key="save_btn",
             )
 
@@ -370,7 +370,7 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
             goal_info["target_calories"],
             title="Calo Bữa Ăn",
         )
-        st.plotly_chart(fig_gauge, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_gauge, width="stretch", config={"displayModeBar": False})
 
     with col_donut:
         fig_donut = macro_donut_chart(
@@ -378,7 +378,7 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
             meal_totals["protein_g"],
             meal_totals["fat_g"],
         )
-        st.plotly_chart(fig_donut, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_donut, width="stretch", config={"displayModeBar": False})
 
     with col_bars:
         fig_bars = macro_progress_bars(
@@ -386,7 +386,7 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
             macro_targets,
             title="Tiến độ Macro Bữa Ăn so với Mục tiêu Ngày",
         )
-        st.plotly_chart(fig_bars, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_bars, width="stretch", config={"displayModeBar": False})
 
     # Summary table
     st.markdown("#### Chi tiết món ăn")
@@ -412,12 +412,11 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
 
     import pandas as pd
     df = pd.DataFrame(table_data)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.dataframe(df, width="stretch", hide_index=True)
 
 
 def _save_to_history(meal_data: dict):
-    """Save the current meal to session history and JSON file."""
-    import config
+    """Save the current meal only within the active browser session."""
 
     record = {
         "timestamp": datetime.now().isoformat(),
@@ -441,21 +440,6 @@ def _save_to_history(meal_data: dict):
         },
     }
     st.session_state.meal_history.append(record)
-
-    # Persist to disk
-    history_path = config.MEAL_HISTORY_PATH
-    history_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        if history_path.exists():
-            with open(history_path, "r", encoding="utf-8") as f:
-                all_records = json.load(f)
-        else:
-            all_records = []
-        all_records.append(record)
-        with open(history_path, "w", encoding="utf-8") as f:
-            json.dump(all_records, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass  # History is optional
 
 
 def _guess_meal_type() -> str:

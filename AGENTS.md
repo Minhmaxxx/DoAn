@@ -25,7 +25,7 @@
 
 - The app does not require secrets for local UI work. Without an LLM key it returns sample advice; `.env` supports `GEMINI_API_KEY`, `OPENAI_API_KEY`, and `LLM_PROVIDER=gemini|openai`.
 - Production inference uses `models/weights/best_baseline_B.pt` and validates SHA-256 plus the exact 12-label checkpoint contract. Randomized demo detections are disabled unless `ENABLE_RANDOM_DEMO=true` is explicitly set.
-- Meal saves write `data/meal_history.json`. It is runtime state and is gitignored.
+- Meal history is stored only in Streamlit session state. It is cleared when the browser session ends and is never shared through a server-side JSON file.
 - `datasets/`, `runs/`, and `models/weights/*.pt` are generated or large artifacts and are gitignored.
 
 ## Training

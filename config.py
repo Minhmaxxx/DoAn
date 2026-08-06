@@ -19,7 +19,6 @@ ASSETS_DIR = ROOT_DIR / "assets"
 
 # Important file paths
 NUTRITION_DB_PATH = DATA_DIR / "nutrition_db.json"
-MEAL_HISTORY_PATH = DATA_DIR / "meal_history.json"
 MODEL_PATH = MODELS_DIR / "best_baseline_B.pt"
 MODEL_NAME = "Baseline B"
 MODEL_SHA256 = "18b8f1dd160a4b6df6ae0f4dc31d00ec729722daefafdc50422dc9e36d845998"

@@ -122,7 +122,7 @@ def main():
             submitted = st.form_submit_button(
                 " Lưu Hồ sơ",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
             )
             if submitted:
                 st.session_state.user_profile = profile
@@ -195,7 +195,7 @@ def main():
             macro_targets["fat_g"],
             title=f"Phân bổ Macro — {profile['goal']}",
         )
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
     # ── LLM API Config ─────────────────────────────────────────────────────
     st.markdown("---")
