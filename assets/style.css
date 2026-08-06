@@ -11,10 +11,12 @@ html, body, [class*="css"] {
     font-family: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* Hide default Streamlit header/footer */
+/* Keep the header so mobile users retain the sidebar navigation toggle. */
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
-header { visibility: hidden; }
+header[data-testid="stHeader"] {
+    background: transparent;
+}
 
 /* ─── Main Container ───────────────────────────────────────────────────────── */
 .main .block-container {
@@ -33,10 +35,16 @@ header { visibility: hidden; }
     margin-bottom: 2rem;
 }
 
-.hero-icon {
-    font-size: 4rem;
-    margin-bottom: 0.5rem;
-    animation: float 3s ease-in-out infinite;
+.hero-kicker {
+    display: inline-flex;
+    padding: 0.35rem 0.75rem;
+    border: 1px solid rgba(78, 205, 196, 0.35);
+    border-radius: 999px;
+    color: #4ECDC4;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    margin-bottom: 1rem;
 }
 
 @keyframes float {
@@ -97,9 +105,17 @@ header { visibility: hidden; }
     box-shadow: 0 8px 32px rgba(78, 205, 196, 0.15);
 }
 
-.feature-icon {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
+.feature-index {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: grid;
+    place-items: center;
+    margin: 0 auto 1rem;
+    border-radius: 10px;
+    background: rgba(78, 205, 196, 0.12);
+    color: #4ECDC4;
+    font-weight: 800;
+    font-size: 0.8rem;
 }
 
 .feature-card h3 {
@@ -154,6 +170,7 @@ header { visibility: hidden; }
     border-radius: 12px;
     padding: 0.75rem 1rem;
     margin-bottom: 0.5rem;
+    min-width: 0;
 }
 
 .food-emoji {
@@ -164,6 +181,7 @@ header { visibility: hidden; }
     font-size: 1rem;
     color: #e0e0e0;
     flex: 1;
+    min-width: 0;
 }
 
 .confidence-badge {
@@ -172,6 +190,7 @@ header { visibility: hidden; }
     color: #aaa;
     padding: 2px 8px;
     border-radius: 20px;
+    white-space: nowrap;
 }
 
 /* ─── Food Badges (list) ───────────────────────────────────────────────────── */
@@ -184,6 +203,12 @@ header { visibility: hidden; }
     color: #ccc;
     margin-bottom: 0.5rem;
     text-align: center;
+}
+
+.food-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.65rem;
 }
 
 /* ─── Metric Cards ─────────────────────────────────────────────────────────── */
@@ -226,6 +251,21 @@ header { visibility: hidden; }
     color: #FFD93D;
     margin-top: 0.5rem;
 }
+
+.model-verdict {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 1.25rem 0;
+    padding: 1rem 1.25rem;
+    border: 1px solid rgba(255, 107, 107, 0.28);
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.10), rgba(78, 205, 196, 0.06));
+}
+
+.model-verdict strong { color: #FF8A8A; white-space: nowrap; }
+.model-verdict span { color: #b8bec8; font-size: 0.9rem; }
 
 /* ─── BMI Scale ────────────────────────────────────────────────────────────── */
 .bmi-scale-container {
@@ -328,6 +368,44 @@ button[data-baseweb="tab"][aria-selected="true"] {
 
 /* ─── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
-    .hero-title { font-size: 2rem; }
+    .main .block-container {
+        padding-top: 1rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .hero-header {
+        padding: 2rem 1rem 1.5rem;
+        border-radius: 16px;
+    }
+
+    .hero-title { font-size: 2.15rem; }
+    .hero-subtitle { font-size: 1rem; }
+    .hero-tagline { font-size: 0.78rem; }
     .feature-card { padding: 1rem; }
+    .food-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .food-card { flex-wrap: wrap; }
+    .confidence-badge { margin-left: 2.55rem; }
+    .stats-card { padding: 1rem; }
+    .model-verdict { align-items: flex-start; flex-direction: column; }
+    .model-verdict strong { white-space: normal; }
+    .metric-card { padding: 1rem; }
+    .metric-value { font-size: 2rem; }
+    [data-testid="stDataFrame"] { overflow-x: auto; }
+}
+
+@media (max-width: 480px) {
+    .hero-title { font-size: 1.85rem; }
+    .hero-kicker { letter-spacing: 0.08em; }
+    .page-title { font-size: 1.65rem; }
+    .food-grid { grid-template-columns: 1fr; }
+    .bmi-segment { font-size: 0.55rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+    }
 }

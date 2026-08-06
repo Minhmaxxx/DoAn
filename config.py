@@ -5,6 +5,7 @@ Hệ thống Trợ lý Tư vấn Dinh dưỡng Cá nhân hóa
 
 import os
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Load .env file if present
@@ -19,7 +20,10 @@ ASSETS_DIR = ROOT_DIR / "assets"
 # Important file paths
 NUTRITION_DB_PATH = DATA_DIR / "nutrition_db.json"
 MEAL_HISTORY_PATH = DATA_DIR / "meal_history.json"
-MODEL_PATH = MODELS_DIR / "best.pt"
+MODEL_PATH = MODELS_DIR / "best_baseline_B.pt"
+MODEL_NAME = "Baseline B"
+MODEL_SHA256 = "18b8f1dd160a4b6df6ae0f4dc31d00ec729722daefafdc50422dc9e36d845998"
+ENABLE_RANDOM_DEMO = os.getenv("ENABLE_RANDOM_DEMO", "false").lower() == "true"
 
 # ─── LLM Settings ────────────────────────────────────────────────────────────
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")  # 'gemini' or 'openai'
@@ -43,48 +47,68 @@ SLIDER_DEFAULT = 1.0 # Default = 1 standard portion
 SLIDER_STEP = 0.25   # Increment step
 
 # ─── Streamlit UI ────────────────────────────────────────────────────────────
-APP_TITLE = " NutriVision — Trợ lý Dinh dưỡng Thông minh"
+APP_TITLE = "NutriVision - Trợ lý Dinh dưỡng Thông minh"
 APP_ICON = ""
 APP_LAYOUT = "wide"
 
-# ─── Supported Food Classes (must match YOLOv8 label names) ──────────────────
+# ─── Model label contract ────────────────────────────────────────────────────
+MODEL_CLASS_MAP = {
+    "Banh-mi": "banh_mi",
+    "Banh-trang-nuong": "banh_trang_nuong",
+    "Banh-xeo": "banh_xeo",
+    "Bun-bo-Hue": "bun_bo_hue",
+    "Bun-dau-mam-tom": "bun_dau_mam_tom",
+    "Bun-rieu": "bun_rieu",
+    "Bun-thit-nuong": "bun_thit_nuong",
+    "Chao-long": "chao_long",
+    "Com-tam": "com_tam",
+    "Goi-cuon": "goi_cuon",
+    "Pho": "pho",
+    "Xoi": "xoi",
+}
+
 FOOD_CLASSES = [
-    "pho_bo",
-    "bun_bo_hue",
-    "bun_cha",
-    "com_tam",
     "banh_mi",
-    "goi_cuon",
-    "nem_ran",
-    "banh_cuon",
+    "banh_trang_nuong",
+    "banh_xeo",
+    "bun_bo_hue",
+    "bun_dau_mam_tom",
+    "bun_rieu",
+    "bun_thit_nuong",
     "chao_long",
-    "xoi_ga",
+    "com_tam",
+    "goi_cuon",
+    "pho",
+    "xoi",
 ]
 
 # Human-readable Vietnamese names
 FOOD_DISPLAY_NAMES = {
-    "pho_bo":     "Phở bò",
+    "banh_mi": "Bánh mì",
+    "banh_trang_nuong": "Bánh tráng nướng",
+    "banh_xeo": "Bánh xèo",
     "bun_bo_hue": "Bún bò Huế",
-    "bun_cha":    "Bún chả",
-    "com_tam":    "Cơm tấm sườn",
-    "banh_mi":    "Bánh mì",
-    "goi_cuon":   "Gỏi cuốn",
-    "nem_ran":    "Nem rán",
-    "banh_cuon":  "Bánh cuốn",
-    "chao_long":  "Cháo lòng",
-    "xoi_ga":     "Xôi gà",
+    "bun_dau_mam_tom": "Bún đậu mắm tôm",
+    "bun_rieu": "Bún riêu",
+    "bun_thit_nuong": "Bún thịt nướng",
+    "chao_long": "Cháo lòng",
+    "com_tam": "Cơm tấm",
+    "goi_cuon": "Gỏi cuốn",
+    "pho": "Phở",
+    "xoi": "Xôi",
 }
 
-# Emoji for each food (for UI display)
 FOOD_EMOJIS = {
-    "pho_bo":     "",
+    "banh_mi": "🥖",
+    "banh_trang_nuong": "🍕",
+    "banh_xeo": "🥞",
     "bun_bo_hue": "",
-    "bun_cha":    "",
-    "com_tam":    "",
-    "banh_mi":    "",
-    "goi_cuon":   "",
-    "nem_ran":    "",
-    "banh_cuon":  "",
-    "chao_long":  "",
-    "xoi_ga":     "",
+    "bun_dau_mam_tom": "🍱",
+    "bun_rieu": "🍜",
+    "bun_thit_nuong": "🍜",
+    "chao_long": "🥣",
+    "com_tam": "🍚",
+    "goi_cuon": "🥗",
+    "pho": "🍜",
+    "xoi": "🍙",
 }

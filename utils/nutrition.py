@@ -5,7 +5,7 @@ Computes BMI, BMR, TDEE, and calorie adjustments for user goals.
 
 from __future__ import annotations
 import json
-import math
+from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 import sys
@@ -17,6 +17,7 @@ import config
 
 # ─── Load Nutrition Database ─────────────────────────────────────────────────
 
+@lru_cache(maxsize=1)
 def load_nutrition_db() -> dict:
     """
     Load the nutrition database from JSON.
@@ -29,7 +30,14 @@ def load_nutrition_db() -> dict:
     try:
         with open(config.NUTRITION_DB_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return data["foods"]
+        foods = data["foods"]
+        expected = set(config.FOOD_CLASSES)
+        actual = set(foods)
+        if actual != expected:
+            missing = sorted(expected - actual)
+            extra = sorted(actual - expected)
+            raise ValueError(f"Nutrition DB sai hợp đồng lớp; thiếu={missing}, thừa={extra}")
+        return foods
     except FileNotFoundError:
         return {}
     except json.JSONDecodeError as e:
@@ -43,7 +51,7 @@ def get_food_nutrition(food_class: str) -> Optional[dict]:
     Parameters
     ----------
     food_class : str
-        Food class ID (e.g. 'pho_bo')
+        Food class ID (e.g. 'pho')
 
     Returns
     -------
@@ -84,12 +92,13 @@ def calculate_adjusted_nutrition(
     """
     food = get_food_nutrition(food_class)
     if food is None:
-        return {}
+        raise KeyError(f"Không có dữ liệu dinh dưỡng cho lớp: {food_class}")
 
     macros = food["macros"]
     std_g = food["standard_portion_g"]
 
     return {
+        "food_class": food_class,
         "display_name": food["display_name"],
         "emoji": food["emoji"],
         "calories": round(food["calories"] * portion_multiplier, 1),

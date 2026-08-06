@@ -42,29 +42,31 @@ AI không thể ước lượng chính xác thể tích món ăn từ ảnh 2D. 
 |---|---|
 | Web Framework | Streamlit 1.35+ |
 | Object Detection | YOLOv8n (Ultralytics) |
-| Transfer Learning | Google Colab + GPU T4 |
+| Transfer Learning | Kaggle GPU |
 | Dataset Labeling | Roboflow |
-| LLM (primary) | Google Google Gemini |
+| LLM (primary) | Google Gemini |
 | LLM (backup) | OpenAI GPT-4o-mini |
 | Visualization | Plotly Express |
 | Deployment | Streamlit Community Cloud |
 
 ---
 
-## Món ăn được hỗ trợ
+## 12 lớp món ăn được hỗ trợ
 
-| # | Món ăn | Calo chuẩn |
+| # | Món ăn | Calo tham khảo |
 |---|---|---|
-| 1 |  Phở bò | 425 kcal/tô |
-| 2 |  Bún bò Huế | 480 kcal/tô |
-| 3 |  Bún chả | 620 kcal/suất |
-| 4 |  Cơm tấm sườn | 750 kcal/đĩa |
-| 5 |  Bánh mì | 380 kcal/ổ |
-| 6 |  Gỏi cuốn | 180 kcal/4 cuốn |
-| 7 |  Nem rán | 320 kcal/5 cái |
-| 8 |  Bánh cuốn | 320 kcal/đĩa |
-| 9 |  Cháo lòng | 380 kcal/tô |
-| 10 |  Xôi gà | 520 kcal/hộp |
+| 1 | Bánh mì | 380 kcal/ổ |
+| 2 | Bánh tráng nướng | 380 kcal/bánh |
+| 3 | Bánh xèo | 580 kcal/bánh lớn |
+| 4 | Bún bò Huế | 480 kcal/tô |
+| 5 | Bún đậu mắm tôm | 700 kcal/mẹt |
+| 6 | Bún riêu | 480 kcal/tô |
+| 7 | Bún thịt nướng | 550 kcal/tô |
+| 8 | Cháo lòng | 380 kcal/tô |
+| 9 | Cơm tấm | 750 kcal/đĩa |
+| 10 | Gỏi cuốn | 180 kcal/4 cuốn |
+| 11 | Phở | 425 kcal/tô |
+| 12 | Xôi | 520 kcal/hộp |
 
 ---
 
@@ -102,6 +104,15 @@ streamlit run app.py
 
 Truy cập: `http://localhost:8501`
 
+### Chạy trên điện thoại bằng ngrok
+
+1. Tạo tài khoản miễn phí tại [ngrok.com](https://ngrok.com/).
+2. Thêm `NGROK_AUTHTOKEN` vào `.env` theo mẫu `.env.example`, hoặc dán token vào prompt bảo mật khi launcher hỏi.
+3. Chạy `run_ngrok.bat` trên Windows hoặc `python run_ngrok.py`.
+4. Mở URL HTTPS được in sau dòng `LINK ĐIỆN THOẠI` trên điện thoại.
+
+URL ngrok chỉ tồn tại khi cửa sổ launcher còn chạy. Đây là link công khai tạm thời; không chia sẻ link hoặc nhập API key nhạy cảm trên một phiên demo đã được chia sẻ.
+
 ---
 
 ## Huấn luyện Mô hình YOLOv8
@@ -138,7 +149,7 @@ nutrivision/
 │   ├── llm.py                # Gemini/GPT integration
 │   └── visualization.py      # Plotly charts
 ├── data/
-│   └── nutrition_db.json     # 10 Vietnamese foods DB
+│   └── nutrition_db.json     # 12 lớp món ăn, khẩu phần tham khảo
 ├── training/
 │   ├── train.py              # Training script
 │   ├── data_collection.py    # Image scraper
@@ -149,9 +160,9 @@ nutrivision/
 
 ---
 
-## Demo Mode
+## Model triển khai
 
-Nếu chưa có file mô hình `models/weights/best.pt`, hệ thống tự động chuyển sang **Demo Mode** — sinh kết quả nhận diện mẫu để minh họa toàn bộ luồng UI mà không cần mô hình thực.
+Ứng dụng dùng `models/weights/best_baseline_B.pt` và kiểm tra checksum cùng thứ tự 12 nhãn khi khởi động. Nếu checkpoint thiếu hoặc không hợp lệ, ứng dụng báo lỗi thay vì tự sinh detection ngẫu nhiên. `ENABLE_RANDOM_DEMO=true` chỉ dành cho phát triển giao diện.
 
 ---
 

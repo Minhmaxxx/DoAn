@@ -3,7 +3,7 @@ training/data_collection.py — Image scraping utility for building the dataset
 Collects images of Vietnamese dishes from search engines.
 
 Usage:
-    python training/data_collection.py --food pho_bo --count 400
+    python training/data_collection.py --food pho --count 400
 
 Requirements:
     pip install icrawler requests pillow tqdm
@@ -30,16 +30,18 @@ sys.path.insert(0, str(ROOT_DIR))
 
 # Vietnamese food search queries (multi-lingual for better results)
 FOOD_QUERIES = {
-    "pho_bo": ["phở bò", "Vietnamese beef pho noodle soup", "pho bo Vietnam", "beef noodle soup Vietnam"],
-    "bun_bo_hue": ["bún bò Huế", "bun bo Hue spicy noodle soup", "Vietnamese Hue beef noodle"],
-    "bun_cha": ["bún chả Hà Nội", "bun cha Hanoi grilled pork noodle", "bun cha Vietnam"],
-    "com_tam": ["cơm tấm sườn", "com tam broken rice Vietnam", "Vietnamese broken rice plate"],
     "banh_mi": ["bánh mì Việt Nam", "Vietnamese banh mi sandwich", "banh mi street food"],
-    "goi_cuon": ["gỏi cuốn tôm thịt", "Vietnamese fresh spring rolls", "goi cuon nem cuon"],
-    "nem_ran": ["nem rán Việt Nam", "Vietnamese fried spring rolls", "cha gio Vietnam"],
-    "banh_cuon": ["bánh cuốn Hà Nội", "Vietnamese steamed rice rolls", "banh cuon Hanoi"],
+    "banh_trang_nuong": ["bánh tráng nướng Đà Lạt", "Vietnamese grilled rice paper", "banh trang nuong"],
+    "banh_xeo": ["bánh xèo Việt Nam", "Vietnamese crispy pancake", "banh xeo shrimp pork"],
+    "bun_bo_hue": ["bún bò Huế", "bun bo Hue spicy noodle soup", "Vietnamese Hue beef noodle"],
+    "bun_dau_mam_tom": ["bún đậu mắm tôm", "Vietnamese tofu noodles shrimp paste", "bun dau mam tom"],
+    "bun_rieu": ["bún riêu cua", "Vietnamese crab noodle soup", "bun rieu Vietnam"],
+    "bun_thit_nuong": ["bún thịt nướng", "Vietnamese grilled pork noodles", "bun thit nuong"],
     "chao_long": ["cháo lòng heo", "Vietnamese pork congee offal", "chao long Vietnam"],
-    "xoi_ga": ["xôi gà", "Vietnamese sticky rice chicken", "xoi ga Vietnam sticky rice"],
+    "com_tam": ["cơm tấm sườn", "com tam broken rice Vietnam", "Vietnamese broken rice plate"],
+    "goi_cuon": ["gỏi cuốn tôm thịt", "Vietnamese fresh spring rolls", "goi cuon nem cuon"],
+    "pho": ["phở", "Vietnamese beef pho noodle soup", "pho bo Vietnam", "beef noodle soup Vietnam"],
+    "xoi": ["xôi", "Vietnamese xoi sticky rice", "xoi sticky rice"],
 }
 
 
@@ -50,7 +52,7 @@ def scrape_images(food_class: str, count: int = 350, output_dir: Path = None) ->
     Parameters
     ----------
     food_class : str
-        Food class ID (e.g. 'pho_bo').
+        Food class ID (e.g. 'pho').
     count : int
         Number of images to collect.
     output_dir : Path
@@ -121,7 +123,32 @@ def scrape_images(food_class: str, count: int = 350, output_dir: Path = None) ->
                     print(f"    DDG search failed for '{query}': {e}")
                     break
         else:
-            print(f"    Failed to query '{query}' after retries. Moving to next query.")
+            print(f"    Failed to query '{query}' with DDG. Falling back to BingImageCrawler...")
+            try:
+                from icrawler.builtin import BingImageCrawler
+                temp_dir = output_dir / "temp_bing"
+                temp_dir.mkdir(exist_ok=True)
+                crawler = BingImageCrawler(storage={"root_dir": str(temp_dir)}, log_level=50)
+                crawler.crawl(keyword=query, max_num=per_query, min_size=(224, 224))
+
+                # Move from temp to output
+                saved_this_query = 0
+                for img_file in temp_dir.iterdir():
+                    if not img_file.suffix.lower() in [".jpg", ".jpeg", ".png", ".webp"]: continue
+                    try:
+                        img = Image.open(img_file).convert("RGB")
+                        img_hash = hashlib.md5(img.tobytes()).hexdigest()[:12]
+                        dest = output_dir / f"{food_class}_{img_hash}.jpg"
+                        if not dest.exists():
+                            img.save(dest, "JPEG", quality=90)
+                            total_saved += 1
+                            saved_this_query += 1
+                    except Exception: pass
+                    finally: img_file.unlink(missing_ok=True)
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                print(f"    -> Downloaded {saved_this_query} new images via Bing.")
+            except Exception as e:
+                print(f"    Bing fallback failed: {e}")
             continue
 
         if not results:
@@ -177,6 +204,8 @@ if __name__ == "__main__":
         validate_dataset(raw_dir)
         sys.exit(0)
 
+    if args.food != "all" and args.food not in FOOD_QUERIES:
+        parser.error(f"Unknown food class: {args.food}. Choose one of: {', '.join(FOOD_QUERIES)}")
     food_classes = list(FOOD_QUERIES.keys()) if args.food == "all" else [args.food]
     total = 0
     for food_class in food_classes:

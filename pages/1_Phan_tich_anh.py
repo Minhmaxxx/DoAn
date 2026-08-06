@@ -12,11 +12,12 @@ Features:
 
 import json
 import sys
+import hashlib
 from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
@@ -35,6 +36,7 @@ from utils.nutrition import (
 )
 from utils.llm import NutriLLM
 from utils.visualization import macro_donut_chart, calorie_gauge, macro_progress_bars
+from utils.state import initialize_session_state
 
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -56,19 +58,13 @@ for key, default in [
     ("meal_nutrition", None),
     ("llm_advice", None),
     ("analysis_done", False),
+    ("analysis_image_hash", None),
+    ("meal_signature", None),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
 
-if "user_profile" not in st.session_state:
-    st.session_state.user_profile = {
-        "age": 22, "gender": "Nam", "weight_kg": 65.0,
-        "height_cm": 170.0, "activity_level": "Vừa phải (3-5 ngày/tuần)",
-        "goal": "Giữ cân",
-    }
-
-if "meal_history" not in st.session_state:
-    st.session_state.meal_history = []
+initialize_session_state()
 
 
 # ─── Cached Detector ──────────────────────────────────────────────────────────
@@ -85,6 +81,32 @@ def compute_biometrics(profile: dict) -> dict:
                         profile["age"], profile["gender"])
     tdee = calculate_tdee(bmr, profile["activity_level"])
     return {**profile, "bmi": bmi, "bmi_category": bmi_cat, "bmr": bmr, "tdee": tdee}
+
+
+def _open_image(source) -> Image.Image | None:
+    try:
+        image = ImageOps.exif_transpose(Image.open(source)).convert("RGB")
+        if image.width * image.height > 25_000_000:
+            image.thumbnail((5000, 5000), Image.Resampling.LANCZOS)
+        return image
+    except (UnidentifiedImageError, OSError, ValueError):
+        st.error("Không thể đọc ảnh. Hãy chọn file JPG, PNG hoặc WEBP hợp lệ.")
+        return None
+
+
+def _reset_analysis(image_hash: str) -> None:
+    if st.session_state.analysis_image_hash == image_hash:
+        return
+    for slider_key in st.session_state.detection_slider_keys:
+        st.session_state.pop(slider_key, None)
+    st.session_state.detection_slider_keys = []
+    st.session_state.detections = []
+    st.session_state.annotated_image = None
+    st.session_state.meal_nutrition = None
+    st.session_state.llm_advice = None
+    st.session_state.analysis_done = False
+    st.session_state.meal_signature = None
+    st.session_state.analysis_image_hash = image_hash
 
 
 # ─── Main Page ────────────────────────────────────────────────────────────────
@@ -110,17 +132,22 @@ def main():
             key="file_uploader",
         )
         if uploaded_file:
-            uploaded_image = Image.open(uploaded_file).convert("RGB")
+            uploaded_image = _open_image(uploaded_file)
 
     with camera_tab:
         camera_image = st.camera_input("Chụp ảnh bữa ăn", key="camera_input")
         if camera_image:
-            uploaded_image = Image.open(camera_image).convert("RGB")
+            uploaded_image = _open_image(camera_image)
 
     if uploaded_image is None:
         st.info(" Hãy tải ảnh hoặc chụp ảnh bữa ăn để bắt đầu phân tích.")
         _render_sample_hint()
         return
+
+    image_hash = hashlib.sha256(
+        uploaded_image.tobytes() + str(uploaded_image.size).encode()
+    ).hexdigest()
+    _reset_analysis(image_hash)
 
     # Preview
     col_img, col_info = st.columns([1, 1])
@@ -142,11 +169,16 @@ def main():
 
     # ── Step 2: Run Detection ───────────────────────────────────────────────
     if analyze_btn:
+        st.session_state.analysis_done = False
+        st.session_state.meal_nutrition = None
+        st.session_state.llm_advice = None
         with st.spinner(" Đang nhận diện món ăn..."):
             detector = get_detector()
             detections = detector.detect(uploaded_image)
 
             if not detections:
+                st.session_state.detections = []
+                st.session_state.annotated_image = None
                 st.warning(
                     " Không nhận diện được món ăn nào trong ảnh. "
                     "Thử ảnh khác rõ hơn hoặc có món ăn nằm trong danh sách hỗ trợ."
@@ -200,7 +232,7 @@ def main():
                     <div class="food-card">
                         <span class="food-emoji">{det.emoji}</span>
                         <strong>{det.display_name}</strong>
-                        <span class="confidence-badge">Conf: {det.confidence:.0%}</span>
+                        <span class="confidence-badge">Độ tin cậy {det.confidence:.0%}</span>
                     </div>
                     """, unsafe_allow_html=True)
 
@@ -213,7 +245,7 @@ def main():
                         min_value=config.SLIDER_MIN,
                         max_value=config.SLIDER_MAX,
                         step=config.SLIDER_STEP,
-                        format="%.2fx (%.0f%%)",
+                        format="%.2fx",
                         key=slider_key,
                         label_visibility="collapsed",
                         help=f"1.0x = 1 khẩu phần chuẩn. Điều chỉnh nếu phần ăn của bạn nhiều hoặc ít hơn.",
@@ -229,7 +261,7 @@ def main():
                         cols[2].metric(" Protein", f"{adj['protein_g']:.0f}g")
                         cols[3].metric(" Fat", f"{adj['fat_g']:.0f}g")
                         st.caption(
-                            f"Khẩu phần: **{ratio}x** chuẩn ≈ **{adj['portion_g']:.0f}g** "
+                            f"Khẩu phần: **{ratio}x** ({ratio * 100:.0f}%) chuẩn ≈ **{adj['portion_g']:.0f}g** "
                             f"(chuẩn: {adj['standard_portion_label']})"
                         )
                     st.markdown("<hr style='margin: 8px 0; opacity: 0.2;'>", unsafe_allow_html=True)
@@ -237,6 +269,10 @@ def main():
         # Meal summary
         if adjusted_items:
             meal_totals = sum_meal_nutrition(adjusted_items)
+            meal_signature = json.dumps(adjusted_items, sort_keys=True, ensure_ascii=False)
+            if st.session_state.meal_signature != meal_signature:
+                st.session_state.llm_advice = None
+                st.session_state.meal_signature = meal_signature
             st.session_state.meal_nutrition = {
                 "foods": adjusted_items,
                **meal_totals,
@@ -289,10 +325,13 @@ def main():
 
         if get_advice_btn:
             runtime_config = st.session_state.get("llm_runtime_config", {})
+            provider = runtime_config.get("provider", config.LLM_PROVIDER)
+            gemini_key = runtime_config.get("gemini_api_key", "").strip() or None
+            openai_key = runtime_config.get("openai_api_key", "").strip() or None
             llm = NutriLLM(
-                provider=runtime_config.get("provider"),
-                gemini_api_key=runtime_config.get("gemini_api_key"),
-                openai_api_key=runtime_config.get("openai_api_key"),
+                provider=provider,
+                gemini_api_key=gemini_key,
+                openai_api_key=openai_key,
             )
             advice_container = st.empty()
             full_advice = ""
@@ -363,12 +402,12 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
         })
 
     table_data.append({
-        "Món ăn": "** TỔNG CỘNG**",
-        "Khẩu phần": "—",
-        "Calo (kcal)": f"**{meal_totals['calories']:.0f}**",
-        "Carb (g)": f"**{meal_totals['carbohydrate_g']:.1f}**",
-        "Protein (g)": f"**{meal_totals['protein_g']:.1f}**",
-        "Fat (g)": f"**{meal_totals['fat_g']:.1f}**",
+            "Món ăn": "TỔNG CỘNG",
+            "Khẩu phần": "-",
+            "Calo (kcal)": f"{meal_totals['calories']:.0f}",
+            "Carb (g)": f"{meal_totals['carbohydrate_g']:.1f}",
+            "Protein (g)": f"{meal_totals['protein_g']:.1f}",
+            "Fat (g)": f"{meal_totals['fat_g']:.1f}",
     })
 
     import pandas as pd
@@ -437,13 +476,11 @@ def _render_sample_hint():
     st.markdown("#### Các món ăn được hỗ trợ nhận diện")
     import config
 
-    cols = st.columns(5)
-    items = list(config.FOOD_EMOJIS.items())
-    for i, (food_class, emoji) in enumerate(items):
-        cols[i % 5].markdown(
-            f"<div class='food-badge'>{emoji} {config.FOOD_DISPLAY_NAMES[food_class]}</div>",
-            unsafe_allow_html=True,
-        )
+    badges = "".join(
+        f"<div class='food-badge'>{emoji} {config.FOOD_DISPLAY_NAMES[food_class]}</div>"
+        for food_class, emoji in config.FOOD_EMOJIS.items()
+    )
+    st.markdown(f"<div class='food-grid'>{badges}</div>", unsafe_allow_html=True)
 
 
 if __name__ == "__main__":

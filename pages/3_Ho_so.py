@@ -18,6 +18,7 @@ from utils.nutrition import (
     calculate_goal_calories, get_macro_targets,
 )
 from utils.visualization import macro_donut_chart
+from utils.state import initialize_session_state
 
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -31,16 +32,7 @@ if css_path.exists():
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # ─── Init session state ───────────────────────────────────────────────────────
-if "user_profile" not in st.session_state:
-    st.session_state.user_profile = {
-        "name": "",
-        "age": 22,
-        "gender": "Nam",
-        "weight_kg": 65.0,
-        "height_cm": 170.0,
-        "activity_level": "Vừa phải (3-5 ngày/tuần)",
-        "goal": "Giữ cân",
-    }
+initialize_session_state()
 
 
 def main():
@@ -258,7 +250,7 @@ def main():
        **NutriVision** là đồ án tốt nghiệp ngành Khoa học Máy tính.
 
        **Công nghệ sử dụng:**
-        - **YOLOv8n** (Ultralytics) — Object Detection nhận diện 10 món ăn Việt Nam
+        - **YOLOv8n Baseline B** (Ultralytics) - nhận diện 12 lớp món ăn Việt Nam
         - **Human-in-the-Loop (HITL)** — Slider tinh chỉnh khẩu phần để giảm sai số
         - **Google Gemini / OpenAI GPT** — Sinh lời khuyên dinh dưỡng cá nhân hóa
         - **Streamlit** — Web App Python full-stack

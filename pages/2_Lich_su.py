@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT_DIR))
 import config
 from utils.nutrition import calculate_goal_calories, calculate_bmr, calculate_tdee
 from utils.visualization import daily_calorie_chart, macro_donut_chart
+from utils.state import initialize_session_state
 
 # ─── Page Config ─────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -30,14 +31,7 @@ if css_path.exists():
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 # ─── Init state ───────────────────────────────────────────────────────────────
-if "user_profile" not in st.session_state:
-    st.session_state.user_profile = {
-        "age": 22, "gender": "Nam", "weight_kg": 65.0,
-        "height_cm": 170.0, "activity_level": "Vừa phải (3-5 ngày/tuần)",
-        "goal": "Giữ cân",
-    }
-if "meal_history" not in st.session_state:
-    st.session_state.meal_history = []
+initialize_session_state()
 
 
 def load_all_history() -> list[dict]:

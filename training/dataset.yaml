@@ -10,22 +10,24 @@ val: images/valid
 test: images/test
 
 # ─── Classes ─────────────────────────────────────────────────────────────────
-nc: 10  # Number of classes
+nc: 12  # Number of classes
 
 names:
-  0: pho_bo        # Phở bò
-  1: bun_bo_hue    # Bún bò Huế
-  2: bun_cha       # Bún chả
-  3: com_tam       # Cơm tấm sườn
-  4: banh_mi       # Bánh mì
-  5: goi_cuon      # Gỏi cuốn
-  6: nem_ran       # Nem rán
-  7: banh_cuon     # Bánh cuốn
-  8: chao_long     # Cháo lòng
-  9: xoi_ga        # Xôi gà
+  0: banh_mi
+  1: banh_trang_nuong
+  2: banh_xeo
+  3: bun_bo_hue
+  4: bun_dau_mam_tom
+  5: bun_rieu
+  6: bun_thit_nuong
+  7: chao_long
+  8: com_tam
+  9: goi_cuon
+  10: pho
+  11: xoi
 
 # ─── Notes ───────────────────────────────────────────────────────────────────
 # Dataset collected and labeled via Roboflow
 # Augmentation applied: Rotation, Brightness, Mosaic, Flip
 # Split: 70% train / 20% val / 10% test
-# Target: ~300 images per class = ~3000 total before augmentation
+# Canonical class IDs follow the deployed Baseline B index order.

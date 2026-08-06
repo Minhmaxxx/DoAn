@@ -1,0 +1,5 @@
+train: images
+val: images
+test: images
+nc: 12
+names: ['Banh-mi', 'Banh-trang-nuong', 'Banh-xeo', 'Bun-bo-Hue', 'Bun-dau-mam-tom', 'Bun-rieu', 'Bun-thit-nuong', 'Chao-long', 'Com-tam', 'Goi-cuon', 'Pho', 'Xoi']

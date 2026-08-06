@@ -33,7 +33,7 @@ pip install ultralytics roboflow icrawler python-dotenv
 python training/data_collection.py --food all --count 350
 
 # Hoặc thu thập từng món
-python training/data_collection.py --food pho_bo --count 400
+python training/data_collection.py --food pho --count 400
 ```
 
 Sau đó upload thư mục `datasets/raw/` lên **Roboflow** để gán nhãn Bounding Box.

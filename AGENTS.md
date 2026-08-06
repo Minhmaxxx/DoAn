@@ -1,0 +1,41 @@
+# Repository Guidance
+
+## Commands
+
+- Run commands from the repository root.
+- Install runtime dependencies with `pip install -r requirements.txt`.
+- Start the app with `python -m streamlit run app.py --server.port 8501`; on Windows, `run.bat` also activates `.venv`/`venv` and enables UTF-8.
+- Start a temporary phone-accessible HTTPS tunnel with `python run_ngrok.py` or `run_ngrok.bat`; it requires `NGROK_AUTHTOKEN` in `.env` and must never print or commit the token.
+- Use `python test_imports.py` only as a smoke check. It catches exceptions and normally exits successfully, so inspect every `[FAIL]`; its final `All imports tested!` line is not a pass signal.
+- There is no configured pytest suite, linter, formatter, type checker, CI workflow, or pre-commit hook.
+
+## Architecture
+
+- This is one Streamlit multipage app: `app.py` is the landing page, pages 1-3 own analysis/history/profile, and `pages/4_Danh_gia_mo_hinh.py` renders the frozen A0/A/B benchmark.
+- `models/detector.py` wraps YOLO; `utils/nutrition.py`, `utils/llm.py`, and `utils/visualization.py` contain the non-UI logic. Shared UI styling lives in `assets/style.css` and is loaded separately by every page.
+- Session-state defaults are duplicated across the entrypoints. Keep them synchronized when changing profile fields or cross-page state.
+
+## Data Contracts
+
+- Food class IDs must match across `config.FOOD_CLASSES`, the config display maps, keys in `data/nutrition_db.json`, class names in `training/dataset.yaml`, and collection queries in `training/data_collection.py`. The detector silently drops model labels not present in `config.FOOD_CLASSES`.
+- Vietnamese gender, activity, and goal labels are executable lookup keys in `utils/nutrition.py`. Keep page options and defaults exact; unknown activity and goal strings silently fall back to sedentary/maintenance behavior.
+- Preserve Vietnamese accents in user-facing text and data.
+
+## Runtime Files
+
+- The app does not require secrets for local UI work. Without an LLM key it returns sample advice; `.env` supports `GEMINI_API_KEY`, `OPENAI_API_KEY`, and `LLM_PROVIDER=gemini|openai`.
+- Production inference uses `models/weights/best_baseline_B.pt` and validates SHA-256 plus the exact 12-label checkpoint contract. Randomized demo detections are disabled unless `ENABLE_RANDOM_DEMO=true` is explicitly set.
+- Meal saves write `data/meal_history.json`. It is runtime state and is gitignored.
+- `datasets/`, `runs/`, and `models/weights/*.pt` are generated or large artifacts and are gitignored.
+
+## Training
+
+- `python training/data_collection.py --food <class-or-all> --count <n>` performs network scraping and writes under `datasets/raw/`; do not run it as a routine check.
+- Default `python training/train.py` downloads from Roboflow, but `ROBOFLOW_WORKSPACE`, `ROBOFLOW_PROJECT`, and `ROBOFLOW_VERSION` are source placeholders and `ROBOFLOW_API_KEY` is required even though it is absent from `.env.example`.
+- Train an existing dataset with `python training/train.py --skip-download --yaml <path/to/data.yaml>`; this script is a reference pipeline and must not overwrite the benchmark-selected production checkpoint without an explicit promotion decision.
+- Evaluate only with `python training/train.py --skip-download --eval-only --yaml <path/to/data.yaml>`. Omitting `--skip-download` ignores `--yaml` and attempts a Roboflow download.
+- Training defaults to CUDA device `0`; batch size, device, epochs, and Roboflow identifiers are module constants rather than CLI options.
+
+## Safety
+
+- Root cleanup/rename scripts such as `remove_emojis.py` and `rename_*.py` recursively rewrite many project files; run them only when explicitly requested, never as formatting or verification.

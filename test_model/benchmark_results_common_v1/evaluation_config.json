@@ -1,0 +1,12 @@
+{
+  "benchmark_manifest_sha256": "93412285838b95a36bcd509bcf2a871af28c84ed982cac8b83bae242d1b51913",
+  "settings": {
+    "imgsz": 640,
+    "iou": 0.7,
+    "map_confidence": 0.001,
+    "batch": 16,
+    "device": "cpu",
+    "operational_confidence": 0.45,
+    "operational_iou": 0.45
+  }
+}

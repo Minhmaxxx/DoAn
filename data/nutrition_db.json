@@ -1,36 +1,50 @@
 {
-  "version": "1.0",
-  "description": "Vietnamese food nutrition database — standard portions. All values are per 1 standard serving.",
+  "version": "2.0",
+  "description": "Dữ liệu dinh dưỡng tham khảo cho 12 lớp món ăn của NutriVision. Giá trị thay đổi theo công thức, nguyên liệu và khẩu phần thực tế.",
   "sources": [
-    "Bảng thành phần thực phẩm Việt Nam (Viện Dinh dưỡng Quốc gia, 2017)",
+    "Bảng thành phần thực phẩm Việt Nam - Viện Dinh dưỡng Quốc gia (2017)",
     "USDA FoodData Central",
-    "Nutritionvalue.org"
+    "Ước tính theo công thức và khẩu phần phổ biến tại Việt Nam"
   ],
   "foods": {
-    "pho_bo": {
-      "display_name": "Phở bò",
-      "display_name_en": "Vietnamese Beef Noodle Soup",
-      "emoji": "🍜",
-      "standard_portion_g": 500,
-      "standard_portion_label": "1 tô lớn (500g)",
-      "calories": 425,
-      "macros": {
-        "carbohydrate_g": 52,
-        "protein_g": 28,
-        "fat_g": 10,
-        "fiber_g": 2.5,
-        "sugar_g": 3.0
-      },
-      "micros": {
-        "sodium_mg": 1280,
-        "calcium_mg": 85,
-        "iron_mg": 3.2,
-        "potassium_mg": 420
-      },
-      "allergens": ["gluten", "soy"],
-      "tags": ["súp", "bún", "thịt bò", "phổ biến"],
-      "description": "Phở bò truyền thống với nước dùng hầm xương bò, bánh phở và thịt bò tái chín.",
-      "meal_type": ["sáng", "trưa", "tối"]
+    "banh_mi": {
+      "display_name": "Bánh mì",
+      "display_name_en": "Vietnamese Baguette Sandwich",
+      "emoji": "🥖",
+      "standard_portion_g": 200,
+      "standard_portion_label": "1 ổ nhân thịt (200g)",
+      "calories": 380,
+      "macros": {"carbohydrate_g": 48, "protein_g": 18, "fat_g": 14, "fiber_g": 2.5, "sugar_g": 4.0},
+      "allergens": ["gluten", "egg"],
+      "description": "Bánh mì pate và chả lụa với rau, đồ chua và nước sốt.",
+      "meal_type": ["sáng", "trưa"],
+      "source_note": "Khẩu phần tham khảo; nhân và lượng sốt có thể làm thay đổi đáng kể năng lượng."
+    },
+    "banh_trang_nuong": {
+      "display_name": "Bánh tráng nướng",
+      "display_name_en": "Vietnamese Grilled Rice Paper",
+      "emoji": "🍕",
+      "standard_portion_g": 180,
+      "standard_portion_label": "1 bánh đầy đủ topping (180g)",
+      "calories": 380,
+      "macros": {"carbohydrate_g": 42, "protein_g": 16, "fat_g": 16, "fiber_g": 2.0, "sugar_g": 5.0},
+      "allergens": ["egg", "shellfish", "soy"],
+      "description": "Bánh tráng nướng với trứng, thịt hoặc xúc xích, hành và nước sốt.",
+      "meal_type": ["ăn vặt"],
+      "source_note": "Ước tính theo một bánh có trứng và topping phổ biến; nước sốt là nguồn sai số chính."
+    },
+    "banh_xeo": {
+      "display_name": "Bánh xèo",
+      "display_name_en": "Vietnamese Savory Pancake",
+      "emoji": "🥞",
+      "standard_portion_g": 350,
+      "standard_portion_label": "1 bánh lớn kèm rau (350g)",
+      "calories": 580,
+      "macros": {"carbohydrate_g": 60, "protein_g": 24, "fat_g": 28, "fiber_g": 4.0, "sugar_g": 4.0},
+      "allergens": ["shellfish", "soy"],
+      "description": "Bánh xèo nhân tôm thịt, giá đỗ, ăn kèm rau sống và nước chấm.",
+      "meal_type": ["trưa", "tối"],
+      "source_note": "Ước tính theo bánh xèo cỡ lớn; lượng dầu chiên quyết định phần lớn sai số."
     },
     "bun_bo_hue": {
       "display_name": "Bún bò Huế",
@@ -39,173 +53,50 @@
       "standard_portion_g": 550,
       "standard_portion_label": "1 tô (550g)",
       "calories": 480,
-      "macros": {
-        "carbohydrate_g": 55,
-        "protein_g": 30,
-        "fat_g": 14,
-        "fiber_g": 2.0,
-        "sugar_g": 2.5
-      },
-      "micros": {
-        "sodium_mg": 1450,
-        "calcium_mg": 70,
-        "iron_mg": 3.8,
-        "potassium_mg": 390
-      },
-      "allergens": ["gluten", "shellfish"],
-      "tags": ["súp", "bún", "thịt bò", "cay", "Huế"],
-      "description": "Bún bò Huế đặc trưng với nước dùng cay đậm đà, chân giò và huyết.",
-      "meal_type": ["sáng", "trưa"]
+      "macros": {"carbohydrate_g": 55, "protein_g": 30, "fat_g": 14, "fiber_g": 2.0, "sugar_g": 2.5},
+      "allergens": ["shellfish"],
+      "description": "Bún bò Huế với thịt bò, giò heo và nước dùng cay.",
+      "meal_type": ["sáng", "trưa"],
+      "source_note": "Khẩu phần một tô phổ biến; không bao gồm phần giò hoặc chả gọi thêm."
     },
-    "bun_cha": {
-      "display_name": "Bún chả",
-      "display_name_en": "Grilled Pork with Rice Noodles",
+    "bun_dau_mam_tom": {
+      "display_name": "Bún đậu mắm tôm",
+      "display_name_en": "Rice Noodles with Fried Tofu and Shrimp Paste",
       "emoji": "🍱",
-      "standard_portion_g": 450,
-      "standard_portion_label": "1 suất (450g)",
-      "calories": 620,
-      "macros": {
-        "carbohydrate_g": 68,
-        "protein_g": 32,
-        "fat_g": 22,
-        "fiber_g": 3.0,
-        "sugar_g": 8.0
-      },
-      "micros": {
-        "sodium_mg": 980,
-        "calcium_mg": 55,
-        "iron_mg": 2.5,
-        "potassium_mg": 310
-      },
-      "allergens": ["gluten", "soy", "fish"],
-      "tags": ["bún", "thịt lợn", "nướng", "Hà Nội"],
-      "description": "Bún chả Hà Nội với thịt lợn nướng than, nước chấm chua ngọt và rau sống.",
-      "meal_type": ["trưa", "tối"]
-    },
-    "com_tam": {
-      "display_name": "Cơm tấm sườn",
-      "display_name_en": "Broken Rice with Grilled Pork Ribs",
-      "emoji": "🍚",
       "standard_portion_g": 500,
-      "standard_portion_label": "1 đĩa đầy (500g)",
-      "calories": 750,
-      "macros": {
-        "carbohydrate_g": 88,
-        "protein_g": 38,
-        "fat_g": 24,
-        "fiber_g": 2.0,
-        "sugar_g": 5.0
-      },
-      "micros": {
-        "sodium_mg": 890,
-        "calcium_mg": 48,
-        "iron_mg": 3.0,
-        "potassium_mg": 380
-      },
-      "allergens": ["gluten", "soy", "egg"],
-      "tags": ["cơm", "sườn", "nướng", "Sài Gòn", "phổ biến"],
-      "description": "Cơm tấm Sài Gòn với sườn nướng, bì, chả, trứng ốp la và nước mắm pha.",
-      "meal_type": ["sáng", "trưa", "tối"]
+      "standard_portion_label": "1 mẹt đầy đủ (500g)",
+      "calories": 700,
+      "macros": {"carbohydrate_g": 75, "protein_g": 30, "fat_g": 32, "fiber_g": 5.0, "sugar_g": 4.0},
+      "allergens": ["soy", "shellfish"],
+      "description": "Bún lá, đậu phụ chiên, thịt luộc, chả cốm, rau và mắm tôm.",
+      "meal_type": ["trưa", "tối"],
+      "source_note": "Ước tính cho mẹt đầy đủ; bỏ thịt/chả hoặc giảm đậu chiên sẽ làm năng lượng thấp hơn."
     },
-    "banh_mi": {
-      "display_name": "Bánh mì",
-      "display_name_en": "Vietnamese Baguette Sandwich",
-      "emoji": "🥖",
-      "standard_portion_g": 200,
-      "standard_portion_label": "1 ổ (200g)",
-      "calories": 380,
-      "macros": {
-        "carbohydrate_g": 48,
-        "protein_g": 18,
-        "fat_g": 14,
-        "fiber_g": 2.5,
-        "sugar_g": 4.0
-      },
-      "micros": {
-        "sodium_mg": 720,
-        "calcium_mg": 42,
-        "iron_mg": 2.2,
-        "potassium_mg": 220
-      },
-      "allergens": ["gluten", "egg", "dairy"],
-      "tags": ["bánh", "nhanh", "đường phố", "phổ biến"],
-      "description": "Bánh mì Việt Nam với pate, chả lụa, rau cải chua và tương ớt.",
-      "meal_type": ["sáng", "trưa"]
+    "bun_rieu": {
+      "display_name": "Bún riêu",
+      "display_name_en": "Vietnamese Crab Noodle Soup",
+      "emoji": "🍜",
+      "standard_portion_g": 500,
+      "standard_portion_label": "1 tô (500g)",
+      "calories": 480,
+      "macros": {"carbohydrate_g": 55, "protein_g": 25, "fat_g": 18, "fiber_g": 3.0, "sugar_g": 4.0},
+      "allergens": ["shellfish", "soy"],
+      "description": "Bún riêu cua với cà chua, riêu, đậu phụ và rau ăn kèm.",
+      "meal_type": ["sáng", "trưa", "tối"],
+      "source_note": "Ước tính theo tô có riêu cua và đậu; chả, huyết và giò thêm chưa được tính."
     },
-    "goi_cuon": {
-      "display_name": "Gỏi cuốn",
-      "display_name_en": "Fresh Spring Rolls",
-      "emoji": "🥗",
-      "standard_portion_g": 200,
-      "standard_portion_label": "4 cuốn (200g)",
-      "calories": 180,
-      "macros": {
-        "carbohydrate_g": 24,
-        "protein_g": 12,
-        "fat_g": 4,
-        "fiber_g": 3.0,
-        "sugar_g": 3.5
-      },
-      "micros": {
-        "sodium_mg": 420,
-        "calcium_mg": 60,
-        "iron_mg": 1.5,
-        "potassium_mg": 280
-      },
-      "allergens": ["shellfish", "peanuts", "soy"],
-      "tags": ["cuốn", "tươi", "lành mạnh", "ít calo"],
-      "description": "Gỏi cuốn tươi với tôm, thịt luộc, bún, rau sống và tương hoisin.",
-      "meal_type": ["trưa", "tối", "ăn vặt"]
-    },
-    "nem_ran": {
-      "display_name": "Nem rán",
-      "display_name_en": "Fried Spring Rolls",
-      "emoji": "🥟",
-      "standard_portion_g": 150,
-      "standard_portion_label": "5 cái (150g)",
-      "calories": 320,
-      "macros": {
-        "carbohydrate_g": 28,
-        "protein_g": 14,
-        "fat_g": 18,
-        "fiber_g": 2.0,
-        "sugar_g": 2.0
-      },
-      "micros": {
-        "sodium_mg": 580,
-        "calcium_mg": 35,
-        "iron_mg": 1.8,
-        "potassium_mg": 195
-      },
-      "allergens": ["gluten", "shellfish", "egg", "soy"],
-      "tags": ["chiên", "nem", "phổ biến", "đường phố"],
-      "description": "Nem rán giòn với nhân thịt lợn, miến, mộc nhĩ và rau củ.",
-      "meal_type": ["trưa", "tối", "ăn vặt"]
-    },
-    "banh_cuon": {
-      "display_name": "Bánh cuốn",
-      "display_name_en": "Steamed Rice Rolls",
-      "emoji": "🫔",
-      "standard_portion_g": 300,
-      "standard_portion_label": "1 đĩa (300g)",
-      "calories": 320,
-      "macros": {
-        "carbohydrate_g": 50,
-        "protein_g": 14,
-        "fat_g": 8,
-        "fiber_g": 1.5,
-        "sugar_g": 2.0
-      },
-      "micros": {
-        "sodium_mg": 650,
-        "calcium_mg": 45,
-        "iron_mg": 1.2,
-        "potassium_mg": 180
-      },
-      "allergens": ["gluten", "soy"],
-      "tags": ["bánh", "hấp", "sáng", "Hà Nội"],
-      "description": "Bánh cuốn Hà Nội nhân thịt và mộc nhĩ, ăn kèm chả lụa và nước chấm.",
-      "meal_type": ["sáng", "trưa"]
+    "bun_thit_nuong": {
+      "display_name": "Bún thịt nướng",
+      "display_name_en": "Rice Noodles with Grilled Pork",
+      "emoji": "🍜",
+      "standard_portion_g": 450,
+      "standard_portion_label": "1 tô (450g)",
+      "calories": 550,
+      "macros": {"carbohydrate_g": 70, "protein_g": 28, "fat_g": 18, "fiber_g": 4.0, "sugar_g": 8.0},
+      "allergens": ["peanuts", "fish"],
+      "description": "Bún thịt lợn nướng với rau sống, đồ chua, đậu phộng và nước mắm.",
+      "meal_type": ["trưa", "tối"],
+      "source_note": "Ước tính theo một tô phổ biến; lượng thịt, đậu phộng và nước mắm tạo sai số."
     },
     "chao_long": {
       "display_name": "Cháo lòng",
@@ -214,48 +105,63 @@
       "standard_portion_g": 400,
       "standard_portion_label": "1 tô (400g)",
       "calories": 380,
-      "macros": {
-        "carbohydrate_g": 45,
-        "protein_g": 22,
-        "fat_g": 12,
-        "fiber_g": 1.0,
-        "sugar_g": 1.5
-      },
-      "micros": {
-        "sodium_mg": 820,
-        "calcium_mg": 40,
-        "iron_mg": 5.5,
-        "potassium_mg": 320
-      },
-      "allergens": ["gluten"],
-      "tags": ["cháo", "lòng", "sáng", "dễ tiêu"],
-      "description": "Cháo lòng heo trắng mịn với tim, gan, cật và hành ngò.",
-      "meal_type": ["sáng"]
+      "macros": {"carbohydrate_g": 45, "protein_g": 22, "fat_g": 12, "fiber_g": 1.0, "sugar_g": 1.5},
+      "allergens": [],
+      "description": "Cháo trắng với lòng heo, huyết và hành ngò.",
+      "meal_type": ["sáng"],
+      "source_note": "Khẩu phần một tô; lượng nội tạng và món ăn kèm có thể thay đổi."
     },
-    "xoi_ga": {
-      "display_name": "Xôi gà",
-      "display_name_en": "Sticky Rice with Chicken",
+    "com_tam": {
+      "display_name": "Cơm tấm",
+      "display_name_en": "Broken Rice with Grilled Pork",
+      "emoji": "🍚",
+      "standard_portion_g": 500,
+      "standard_portion_label": "1 đĩa sườn đầy đủ (500g)",
+      "calories": 750,
+      "macros": {"carbohydrate_g": 88, "protein_g": 38, "fat_g": 24, "fiber_g": 2.0, "sugar_g": 5.0},
+      "allergens": ["egg", "soy"],
+      "description": "Cơm tấm với sườn nướng, bì, chả, trứng và nước mắm.",
+      "meal_type": ["sáng", "trưa", "tối"],
+      "source_note": "Giả định đĩa đầy đủ; đĩa chỉ có sườn và cơm sẽ có năng lượng thấp hơn."
+    },
+    "goi_cuon": {
+      "display_name": "Gỏi cuốn",
+      "display_name_en": "Fresh Spring Rolls",
+      "emoji": "🥗",
+      "standard_portion_g": 200,
+      "standard_portion_label": "4 cuốn (200g)",
+      "calories": 180,
+      "macros": {"carbohydrate_g": 24, "protein_g": 12, "fat_g": 4, "fiber_g": 3.0, "sugar_g": 3.5},
+      "allergens": ["shellfish", "peanuts", "soy"],
+      "description": "Gỏi cuốn tôm thịt với bún và rau sống; chưa gồm nhiều nước chấm.",
+      "meal_type": ["trưa", "tối", "ăn vặt"],
+      "source_note": "Một khẩu phần chuẩn là bốn cuốn; model có thể nhận diện cả đĩa thay vì từng cuốn."
+    },
+    "pho": {
+      "display_name": "Phở",
+      "display_name_en": "Vietnamese Beef Noodle Soup",
+      "emoji": "🍜",
+      "standard_portion_g": 500,
+      "standard_portion_label": "1 tô phở bò (500g)",
+      "calories": 425,
+      "macros": {"carbohydrate_g": 52, "protein_g": 28, "fat_g": 10, "fiber_g": 2.5, "sugar_g": 3.0},
+      "allergens": ["soy"],
+      "description": "Phở bò với bánh phở, thịt bò, nước dùng và rau thơm.",
+      "meal_type": ["sáng", "trưa", "tối"],
+      "source_note": "Giả định phở bò cỡ lớn; phở gà hoặc phần thịt đặc biệt có dinh dưỡng khác."
+    },
+    "xoi": {
+      "display_name": "Xôi",
+      "display_name_en": "Vietnamese Sticky Rice",
       "emoji": "🍙",
       "standard_portion_g": 350,
-      "standard_portion_label": "1 hộp (350g)",
+      "standard_portion_label": "1 hộp xôi mặn (350g)",
       "calories": 520,
-      "macros": {
-        "carbohydrate_g": 72,
-        "protein_g": 28,
-        "fat_g": 12,
-        "fiber_g": 1.5,
-        "sugar_g": 2.0
-      },
-      "micros": {
-        "sodium_mg": 560,
-        "calcium_mg": 35,
-        "iron_mg": 2.0,
-        "potassium_mg": 280
-      },
+      "macros": {"carbohydrate_g": 72, "protein_g": 28, "fat_g": 12, "fiber_g": 1.5, "sugar_g": 2.0},
       "allergens": ["soy"],
-      "tags": ["xôi", "gà", "sáng", "no lâu"],
-      "description": "Xôi gà dẻo thơm với thịt gà xé và hành phi vàng giòn.",
-      "meal_type": ["sáng", "trưa"]
+      "description": "Xôi mặn với thịt hoặc gà, hành phi và đồ ăn kèm.",
+      "meal_type": ["sáng", "trưa"],
+      "source_note": "Model gộp nhiều loại xôi; giá trị này đại diện xôi mặn, không phù hợp cho mọi biến thể."
     }
   }
 }
