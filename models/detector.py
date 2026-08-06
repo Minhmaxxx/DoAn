@@ -161,7 +161,8 @@ class FoodDetector:
 
         try:
             import numpy as np
-            img_array = np.array(image.convert("RGB"))
+            # Ultralytics interprets NumPy image inputs as OpenCV-style BGR.
+            img_array = np.ascontiguousarray(np.array(image.convert("RGB"))[:, :, ::-1])
             results = self._model.predict(
                 source=img_array,
                 conf=config.YOLO_CONF_THRESHOLD,
