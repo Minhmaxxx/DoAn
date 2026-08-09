@@ -1,29 +1,29 @@
-# Cleanup Candidates
+# Cleanup Status
 
-Tài liệu này chỉ đánh dấu các mục cần xem xét. Không xóa artifact train, benchmark, checkpoint hoặc báo cáo trước khi có bản sao lưu đã kiểm tra checksum.
+Không xóa artifact train, benchmark, checkpoint hoặc báo cáo khi chưa có backup độc lập. Người dùng xác nhận backup Google Drive đã hoàn tất ngày 2026-08-06.
 
-## Có thể xóa an toàn
+## Đã xóa an toàn
 
-- `__pycache__/` và mọi thư mục `*/__pycache__/`: bytecode Python sinh tự động.
-- `test_model/benchmark_common_v1/labels.cache`: cache Ultralytics, tự tạo lại khi benchmark.
-- `test_bing/`: năm ảnh tải thử từ crawler smoke test.
-- `test_model/Ket_Qua_So_Sanh/Model_A/` và `test_model/Ket_Qua_So_Sanh/Model_B/`: output cũ của lần so sánh hai model; output ba model hiện dùng các thư mục `Baseline_A0/`, `Baseline_A/`, `Baseline_B/`.
-
-## Script một lần, nên xóa sau khi xác nhận
-
-- `remove_emojis.py`: migration rewrite toàn repository, không phải công cụ runtime.
-- `rename_classes.py`: replacement hiện là no-op.
-- `rename_xoi.py`: replacement và folder rename hiện là no-op.
+- `.venv/` Python 3.10.6: đã được `.venv311/` thay thế, thu hồi khoảng 1.49 GiB.
+- `__pycache__/` và mọi cache module: bytecode Python sinh tự động.
+- `test_model/benchmark_common_v1/labels.cache`: cache Ultralytics, có thể tự tạo lại.
+- `test_bing/`: ảnh tải thử từ crawler smoke test.
+- `7.2.0`: output cài đặt pip bị ghi nhầm thành file.
+- `remove_emojis.py`, `rename_classes.py`, `rename_xoi.py`: migration/no-op một lần.
 - `test_crawler.py`: network probe, không phải automated test.
-- `fetch_bing.py`: crawler riêng cho Phở/Xôi, trùng phần lớn chức năng `training/data_collection.py`; giữ đến khi provenance dữ liệu đã được ghi vào báo cáo.
 
-## Bản sao trùng, chỉ xóa sau khi backup
+## Giữ có chủ đích
+
+- `training/fetch_pho_xoi.py`: giữ đến Phase E vì ghi lại provenance thu thập bổ sung Phở/Xôi.
+- `test_model/Ket_Qua_So_Sanh/`: giữ output định tính A0/A/B cho báo cáo.
+
+## Bản sao checkpoint trùng
 
 - `KetQuaTrain/best_baseline_A0.pt`
 - `KetQuaTrain/best_baseline_A.pt`
 - `KetQuaTrain/best_baseline_B.pt`
 
-Ba file trên trùng checksum với best checkpoint nằm trong thư mục train tương ứng và `test_model/weights_test/`. Giữ ít nhất hai bản sao độc lập trước khi dọn.
+Ba file trên trùng checksum với checkpoint trong thư mục train và `test_model/weights_test/`. Hiện giữ lại vì tổng dung lượng nhỏ và hữu ích khi đối chiếu provenance.
 
 ## Cần xác nhận thủ công
 

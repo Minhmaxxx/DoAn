@@ -38,4 +38,4 @@
 
 ## Safety
 
-- Root cleanup/rename scripts such as `remove_emojis.py` and `rename_*.py` recursively rewrite many project files; run them only when explicitly requested, never as formatting or verification.
+- Do not add or run root-wide cleanup/rename scripts as routine formatting or verification; they can recursively rewrite source, data, notebooks, and reports.

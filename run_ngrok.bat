@@ -4,7 +4,9 @@
 set PYTHONUTF8=1
 chcp 65001 > nul
 
-if exist ".venv\Scripts\activate.bat" (
+if exist ".venv311\Scripts\activate.bat" (
+    call .venv311\Scripts\activate.bat
+) else if exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
 ) else if exist "venv\Scripts\activate.bat" (
     call venv\Scripts\activate.bat

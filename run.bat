@@ -13,14 +13,17 @@ set PYTHONUTF8=1
 chcp 65001 > nul
 
 :: 1. Auto-detect and activate virtual environment
-if exist ".venv\Scripts\activate.bat" (
+if exist ".venv311\Scripts\activate.bat" (
+    echo [INFO] Found verified Python 3.11 environment at .venv311. Activating...
+    call .venv311\Scripts\activate.bat
+) else if exist ".venv\Scripts\activate.bat" (
     echo [INFO] Found virtual environment at .venv. Activating...
     call .venv\Scripts\activate.bat
 ) else if exist "venv\Scripts\activate.bat" (
     echo [INFO] Found virtual environment at venv. Activating...
     call venv\Scripts\activate.bat
 ) else (
-    echo [WARNING] No virtual environment found - .venv or venv
+    echo [WARNING] No virtual environment found - .venv311, .venv or venv
     echo           The system will run using the global Python environment.
     echo.
 )

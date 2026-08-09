@@ -446,10 +446,10 @@ Các phase dưới đây được thực hiện tuần tự. Tổng khối lư�
 
 ### Phase A - Khóa baseline và artifact
 
-- [ ] Sao lưu checkpoint A0/A/B, benchmark CSV/JSON, notebook Kaggle, dataset manifest và báo cáo vào ít nhất một nơi ngoài repository.
-- [ ] Lưu SHA-256, kích thước file và vị trí backup của `best_baseline_B.pt` trong ghi chú release.
-- [ ] Rà soát các file đang untracked, đặc biệt `pages/4_Danh_gia_mo_hinh.py`, `utils/state.py`, `test_model/` và launcher ngrok; chỉ đưa vào Git những file nguồn/tài liệu cần thiết.
-- [ ] Không đưa API key, dataset lớn, checkpoint lớn hoặc `data/meal_history.json` vào Git.
+- [x] Sao lưu checkpoint A0/A/B, benchmark, notebook Kaggle, dataset và báo cáo lên Google Drive; người dùng xác nhận hoàn tất ngày 2026-08-06.
+- [x] Lưu SHA-256 checkpoint B và vị trí backup Google Drive trong `PROGRESS.md`; chưa tải lại bản cloud để xác minh hash độc lập.
+- [x] Rà soát file untracked; chỉ đưa source, tài liệu và benchmark metadata nhỏ cần thiết vào Git.
+- [x] Không đưa API key, dataset lớn, checkpoint lớn hoặc runtime history vào Git.
 
 **Hoàn thành khi:** Có thể khôi phục đúng checkpoint B và kết quả benchmark ngay cả khi máy hiện tại bị mất.
 
@@ -479,6 +479,16 @@ Hồ sơ -> Upload/camera -> YOLO Baseline B -> Mapping 12 lớp
 - [x] History bản public chỉ lưu trong Streamlit session; không đọc/ghi `data/meal_history.json` dùng chung giữa người dùng.
 - [ ] Kiểm tra giao diện desktop và điện thoại, nhất là upload, bảng dinh dưỡng, tư vấn dài và biểu đồ.
 
+Thứ tự triển khai phần còn lại của Phase C:
+
+1. **C1 - Input ảnh:** kiểm tra JPG/PNG/WEBP hợp lệ, file hỏng, ảnh lớn, EXIF rotation và ảnh không chứa món hỗ trợ.
+2. **C2 - Inference:** dùng fixture một món, nhiều món và negative/OOD; ghi detection, confidence, thời gian và thông báo UI.
+3. **C3 - HITL:** kiểm tra `0.25x`, `1.0x`, `3.0x`, nhiều box cùng lớp và tổng calo/macro.
+4. **C4 - LLM:** kiểm tra không có key, provider/key không hợp lệ và lỗi mạng; app phải fallback hoặc báo lỗi rõ mà không mất meal state.
+5. **C5 - Responsive:** kiểm tra desktop và điện thoại qua HTTPS, tập trung upload/camera, bảng, tư vấn dài và biểu đồ.
+
+Mỗi test case phải được ghi vào `PROGRESS.md` với input, expected result, actual result và bằng chứng/lệnh kiểm tra.
+
 **Hoàn thành khi:** Người dùng mới có thể đi hết luồng trên mà không cần biết cấu trúc dự án hoặc chỉnh file cấu hình.
 
 ### Phase D - Release gate và kiểm thử
@@ -505,10 +515,10 @@ Hồ sơ -> Upload/camera -> YOLO Baseline B -> Mapping 12 lớp
 
 ### 10.3 Việc bắt đầu ngay
 
-1. Hoàn thành Phase A: backup artifact và phân loại các file untracked cần giữ.
-2. Bắt đầu Phase B: tạo môi trường Python 3.11 sạch, cài dependencies và làm `python test_imports.py` pass.
-3. Sau khi app chạy, thực hiện Phase C theo luồng người dùng trước khi viết thêm tính năng.
+1. Hoàn tất Phase C bằng test ảnh biên, HITL, LLM fallback và giao diện điện thoại.
+2. Ghi từng test case và kết quả vào `PROGRESS.md` để dùng trong báo cáo.
+3. Sau khi Phase C ổn định, chuyển sang Phase D và thiết lập release gate tự động.
 
 ---
 
-*Phiên bản: 2.3 | Cập nhật: 2026-08-06 | Trạng thái: Phase B hoàn tất trên Python 3.11; Phase C đang hoàn thiện luồng người dùng và privacy.*
+*Phiên bản: 2.4 | Cập nhật: 2026-08-06 | Trạng thái: Phase A-B hoàn tất; Phase C đang kiểm thử và hoàn thiện luồng người dùng.*

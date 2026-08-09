@@ -37,15 +37,26 @@ models/weights/*.tflite
 runs/
 *.pt.backup
 train_results/
+KetQuaTrain/
 
 # --- Data (large files) ---
 data/sample_images/*
 !data/sample_images/.gitkeep
 data/meal_history.json
+test_model/weights_test/
+test_model/anh_test/
+test_model/benchmark_common_v1/images/
+test_model/benchmark_common_v1/labels/
+test_model/benchmark_results_common_v1/Baseline_*/
+test_model/Ket_Qua_So_Sanh/
 
 # --- Jupyter Notebooks ---
 .ipynb_checkpoints/
 *.ipynb
+notebooks/*.pdf
+
+# --- Reports (backed up outside Git) ---
+*.docx
 
 # --- IDE ---
 .vscode/
