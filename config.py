@@ -38,6 +38,9 @@ LLM_TEMPERATURE = 0.7
 YOLO_CONF_THRESHOLD = 0.45  # Minimum confidence to accept a detection
 YOLO_IOU_THRESHOLD = 0.45   # IOU threshold for Non-Maximum Suppression
 YOLO_IMG_SIZE = 640          # Input resolution for YOLOv8
+MAX_UPLOAD_SIZE_MB = 20
+MAX_IMAGE_PIXELS = 25_000_000
+MAX_IMAGE_DIMENSION = 5000
 
 # ─── HITL Slider Settings ────────────────────────────────────────────────────
 SLIDER_MIN = 0.25    # Minimum portion ratio (quarter portion)

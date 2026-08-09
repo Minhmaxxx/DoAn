@@ -473,9 +473,9 @@ Hồ sơ -> Upload/camera -> YOLO Baseline B -> Mapping 12 lớp
 -> Lưu lịch sử -> Xem thống kê 7 ngày
 ```
 
-- [ ] Kiểm tra ảnh có một món, nhiều món, không có món, ảnh sai định dạng và ảnh quá lớn.
-- [ ] Hiển thị thông báo rõ ràng khi checkpoint thiếu/sai, không nhận diện được món, API key không có hoặc LLM lỗi mạng.
-- [ ] Kiểm tra slider tại `0.25x`, `1.0x`, `3.0x`; tổng calo và macro phải thay đổi đúng theo khẩu phần.
+- [x] Kiểm tra ảnh có một món, nhiều món, không có món, ảnh sai định dạng và ảnh quá lớn.
+- [x] Kiểm tra thông báo khi checkpoint thiếu/sai, không nhận diện được món, API key không có hoặc LLM lỗi mạng.
+- [x] Kiểm tra slider tại `0.25x`, `1.0x`, `3.0x`; tổng calo và macro thay đổi đúng theo khẩu phần.
 - [x] History bản public chỉ lưu trong Streamlit session; không đọc/ghi `data/meal_history.json` dùng chung giữa người dùng.
 - [ ] Kiểm tra giao diện desktop và điện thoại, nhất là upload, bảng dinh dưỡng, tư vấn dài và biểu đồ.
 

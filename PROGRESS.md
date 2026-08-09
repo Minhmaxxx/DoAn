@@ -1,6 +1,6 @@
 # NutriVision Progress Record
 
-**Cập nhật:** 2026-08-06<br>
+**Cập nhật:** 2026-08-09<br>
 **Trạng thái hiện tại:** Phase A và B hoàn tất; Phase C đang tiếp tục sau khi xử lý privacy, môi trường và cleanup.
 
 Tài liệu này lưu lại các quyết định, kết quả kiểm tra và bằng chứng có thể dùng khi viết báo cáo hoặc tiếp tục phát triển.
@@ -67,6 +67,7 @@ Thiết lập benchmark chung:
 | `aa12219` | Tích hợp Baseline B, dashboard benchmark, state helper và artifact metadata nhỏ |
 | `f0fff31` | Sửa kênh màu BGR cho YOLO inference |
 | `6a3a41c` | Tách meal history theo Streamlit session, cập nhật Phase B và UI API |
+| `9da861d` | Ghi nhận backup, cleanup workspace và chuẩn hóa launcher Python 3.11 |
 
 ## 5. Backup Phase A bắt buộc
 
@@ -135,6 +136,48 @@ Dung lượng thu hồi ước tính: khoảng 1.50 GiB. Artifact model, dataset
 - `git diff --check`: không có lỗi whitespace.
 
 Các artifact train/benchmark/report đã backup được thêm vào `.gitignore` theo đường dẫn cụ thể để giữ worktree sạch mà không xóa dữ liệu local.
+
+### 2026-08-09 - Phase C1-C4: input, inference, HITL và LLM
+
+**Mục tiêu:** kiểm tra các nhánh chính của luồng sản phẩm trước khi chuyển sang release test tự động.
+
+Thay đổi sản phẩm:
+
+- Giới hạn file upload ở 20 MB qua `server.maxUploadSize`.
+- Đưa giới hạn ảnh vào `config.py`: tối đa 25 triệu pixel trước khi resize, cạnh tối đa 5000 px.
+- Resize ảnh lớn trước bước chuyển sang RGB để giảm peak memory.
+- Giữ xử lý EXIF orientation trước inference.
+
+Kết quả kiểm tra:
+
+| Test case | Expected | Actual | Kết quả |
+|---|---|---|---|
+| JPEG, PNG, WEBP | Đọc được ảnh RGB | Cả ba định dạng trả ảnh RGB đúng kích thước | Pass |
+| EXIF orientation 6 | Ảnh `20x30` thành `30x20` | Kích thước `30x20` | Pass |
+| Dữ liệu không phải ảnh | Không crash, báo lỗi tiếng Việt | Trả `None` và thông báo `Không thể đọc ảnh...` | Pass |
+| Ảnh `5100x5100` | Resize về giới hạn | Trả ảnh `5000x5000` | Pass |
+| Checkpoint thiếu | Báo rõ đường dẫn thiếu | `Không tìm thấy checkpoint tại ...` | Pass |
+| Checkpoint sai checksum | Từ chối artifact | `Checksum checkpoint không khớp...` | Pass |
+| Fixture 1 box Bánh mì | Nhận diện Bánh mì | `banh_mi=0.6901` | Pass |
+| Fixture 3 box Bún riêu | Luồng trả detection hợp lệ | Phát hiện `1/3` box, `bun_rieu=0.7475` | Pass có giới hạn recall |
+| 10 ảnh negative | Không false positive ở confidence 0.45 | `0/10` ảnh có detection, trung bình `106.95 ms/ảnh` sau warm-up | Pass |
+| HITL Bánh xèo | Calo tuyến tính theo khẩu phần | `0.25x=145`, `1x=580`, `3x=1740` kcal | Pass |
+| Hai box Bánh xèo | Cộng riêng từng box | Tổng `1160 kcal`, `48 g protein` | Pass |
+| Không có API key | Sample advice có nhãn rõ | Trả nội dung `Đây là phân tích mẫu` | Pass |
+| Key sai/lỗi mạng mô phỏng | Không crash, báo lỗi rõ | Trả `Lỗi kết nối AI` | Pass |
+
+Ghi chú hiệu năng:
+
+- Cold start gồm load checkpoint và khởi tạo runtime mất khoảng `8.02 giây` trên CPU ở lần đo này.
+- Inference warm cho fixture multi-object khoảng `192 ms`; negative set trung bình khoảng `107 ms/ảnh`.
+- Con số benchmark chuẩn trong mục 2 vẫn là nguồn chính để báo cáo hiệu năng; phép đo Phase C dùng để đánh giá trải nghiệm runtime.
+
+Giới hạn được ghi nhận:
+
+- Model bỏ sót hai trong ba box Bún riêu ở fixture multi-object tại confidence `0.45`. Không sửa bằng cách hạ ngưỡng tùy tiện vì ngưỡng đã được khóa theo benchmark.
+- Responsive CSS đã có breakpoint `768 px` và `480 px`, dataframe có horizontal overflow và card/grid tự co. Kiểm tra trực quan trên điện thoại thật qua HTTPS vẫn đang chờ thực hiện thủ công.
+
+Regression check sau thay đổi: `test_imports.py`, `pip check` và render bằng `AppTest` cho trang chủ cùng bốn trang chức năng đều pass.
 
 ## 8. Công việc tiếp theo khi tiếp tục
 

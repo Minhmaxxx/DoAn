@@ -85,10 +85,14 @@ def compute_biometrics(profile: dict) -> dict:
 
 def _open_image(source) -> Image.Image | None:
     try:
-        image = ImageOps.exif_transpose(Image.open(source)).convert("RGB")
-        if image.width * image.height > 25_000_000:
-            image.thumbnail((5000, 5000), Image.Resampling.LANCZOS)
-        return image
+        with Image.open(source) as source_image:
+            image = ImageOps.exif_transpose(source_image)
+            if image.width * image.height > config.MAX_IMAGE_PIXELS:
+                image.thumbnail(
+                    (config.MAX_IMAGE_DIMENSION, config.MAX_IMAGE_DIMENSION),
+                    Image.Resampling.LANCZOS,
+                )
+            return image.convert("RGB")
     except (UnidentifiedImageError, OSError, ValueError):
         st.error("Không thể đọc ảnh. Hãy chọn file JPG, PNG hoặc WEBP hợp lệ.")
         return None
@@ -128,7 +132,11 @@ def main():
         uploaded_file = st.file_uploader(
             "Chọn ảnh (JPG, PNG, WEBP)",
             type=["jpg", "jpeg", "png", "webp"],
-            help="Ảnh rõ nét, chụp từ trên xuống sẽ cho kết quả nhận diện tốt nhất.",
+            help=(
+                f"Tối đa {config.MAX_UPLOAD_SIZE_MB} MB. "
+                "Ảnh rõ nét, chụp từ trên xuống sẽ cho "
+                "kết quả nhận diện tốt nhất."
+            ),
             key="file_uploader",
         )
         if uploaded_file:
