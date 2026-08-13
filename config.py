@@ -25,12 +25,12 @@ MODEL_SHA256 = "18b8f1dd160a4b6df6ae0f4dc31d00ec729722daefafdc50422dc9e36d845998
 ENABLE_RANDOM_DEMO = os.getenv("ENABLE_RANDOM_DEMO", "false").lower() == "true"
 
 # ─── LLM Settings ────────────────────────────────────────────────────────────
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")  # 'gemini' or 'openai'
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "google").strip().lower()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
-GEMINI_MODEL = "gemini-pro"
-OPENAI_MODEL = "gpt-4o-mini"
+GOOGLE_MODEL = os.getenv("GOOGLE_MODEL", "gemini-3.5-flash").strip() or "gemini-3.5-flash"
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
 LLM_MAX_TOKENS = 1024
 LLM_TEMPERATURE = 0.7
 
@@ -104,7 +104,7 @@ FOOD_EMOJIS = {
     "banh_mi": "🥖",
     "banh_trang_nuong": "🍕",
     "banh_xeo": "🥞",
-    "bun_bo_hue": "",
+    "bun_bo_hue": "🍜",
     "bun_dau_mam_tom": "🍱",
     "bun_rieu": "🍜",
     "bun_thit_nuong": "🍜",

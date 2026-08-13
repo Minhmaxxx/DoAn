@@ -10,11 +10,11 @@ NutriVision cần hoàn thiện một luồng có thể kiểm chứng và tri�
 2. Chuyển nhãn gốc của checkpoint sang ID chuẩn dùng trong ứng dụng.
 3. Tra cứu dinh dưỡng và cho phép người dùng điều chỉnh khẩu phần bằng HITL từ `0.25x` đến `3.0x`.
 4. Tính BMI, BMR, TDEE, mục tiêu calo và macro.
-5. Sinh tư vấn tiếng Việt bằng Gemini/OpenAI hoặc nội dung mẫu khi không có API key.
+5. Sinh tư vấn tiếng Việt bằng model Gemini/Gemma qua Google GenAI, OpenAI, hoặc nội dung mẫu khi không có API key.
 6. Lưu và trực quan hóa lịch sử bữa ăn.
 7. So sánh Baseline A và Baseline B trên cùng một benchmark trước khi chọn model triển khai.
 
-Trạng thái hiện tại: A0/A/B đã được đánh giá trên benchmark sạch 404 ảnh; Baseline B đã được chọn bằng tie-break, hợp đồng 12 lớp và giao diện model thật đã được tích hợp. Kiểm thử release và deployment công khai vẫn cần hoàn tất.
+Trạng thái hiện tại: A0/A/B đã được đánh giá trên benchmark sạch 404 ảnh; Baseline B đã được chọn bằng tie-break, hợp đồng 12 lớp và giao diện model thật đã được tích hợp. Release gate tự động đã pass; kiểm tra điện thoại thật, live LLM và deployment công khai vẫn cần hoàn tất.
 
 ## 2. Kiến trúc mục tiêu
 
@@ -26,7 +26,7 @@ Trạng thái hiện tại: A0/A/B đã được đánh giá trên benchmark s�
 -> HITL điều chỉnh khẩu phần (0.25x - 3.0x, bước 0.25)
 -> Tổng calo và macro
 -> Hồ sơ người dùng + BMI/BMR/TDEE + mục tiêu
--> Gemini/OpenAI hoặc sample advice có ghi nhãn rõ ràng
+-> Google Gemini/Gemma, OpenAI hoặc sample advice có ghi nhãn rõ ràng
 -> Lịch sử bữa ăn theo phiên/người dùng
 ```
 
@@ -183,8 +183,8 @@ config.FOOD_CLASSES == canonical names của dataset tương lai
 | A/B script chỉ đếm số box | Không đo đúng lớp, IoU, false positive hoặc mAP |
 | Năm ảnh challenge chưa có ground truth | Chỉ phù hợp minh họa định tính |
 | `training/train.py` không tái lập checkpoint Kaggle | Không thể dùng script hiện tại làm bằng chứng phương pháp train |
-| `test_imports.py` bắt mọi exception và vẫn thường exit 0 | Không phải release gate đáng tin cậy |
-| Meal history dùng một JSON chung trên disk | Không phù hợp deployment đa người dùng |
+| Live LLM và camera điện thoại cần secret/thiết bị ngoài test suite | Phải kiểm tra thủ công trước demo công khai |
+| Meal history chỉ tồn tại trong Streamlit session | Đảm bảo privacy nhưng không lưu được qua phiên mới |
 | Model, dataset và báo cáo đang ignored/untracked | Có nguy cơ mất artifact nếu chỉ dựa vào Git |
 
 ## 6. Lộ trình theo phase
@@ -371,7 +371,7 @@ Công việc:
 - Chọn cơ chế phân phối checkpoint: Git LFS, release asset hoặc model registry.
 - Tải và xác minh SHA-256 trước khi dùng checkpoint từ xa.
 - Pin dependency versions đã benchmark, đặc biệt Ultralytics, PyTorch, Streamlit và LLM SDK.
-- Kiểm tra Gemini SDK/model hiện còn được hỗ trợ trước release.
+- Kiểm tra Google GenAI SDK và model ID hiện còn được hỗ trợ trước release.
 - Cấu hình Streamlit production thay vì ép `localhost` và `headless=false`.
 - Dùng secrets/environment variables; không commit API key.
 - Thay `data/meal_history.json` dùng chung bằng storage theo user/session hoặc tắt persistence trên public demo.
@@ -477,7 +477,8 @@ Hồ sơ -> Upload/camera -> YOLO Baseline B -> Mapping 12 lớp
 - [x] Kiểm tra thông báo khi checkpoint thiếu/sai, không nhận diện được món, API key không có hoặc LLM lỗi mạng.
 - [x] Kiểm tra slider tại `0.25x`, `1.0x`, `3.0x`; tổng calo và macro thay đổi đúng theo khẩu phần.
 - [x] History bản public chỉ lưu trong Streamlit session; không đọc/ghi `data/meal_history.json` dùng chung giữa người dùng.
-- [ ] Kiểm tra giao diện desktop và điện thoại, nhất là upload, bảng dinh dưỡng, tư vấn dài và biểu đồ.
+- [x] Thêm responsive safeguards cho tab, radio, uploader/camera, metric, Plotly, dataframe và nội dung dài; năm page render bằng AppTest.
+- [ ] Kiểm tra trực quan desktop và điện thoại thật, nhất là upload, camera, bảng dinh dưỡng, tư vấn dài và biểu đồ.
 
 Thứ tự triển khai phần còn lại của Phase C:
 
@@ -493,12 +494,14 @@ Mỗi test case phải được ghi vào `PROGRESS.md` với input, expected res
 
 ### Phase D - Release gate và kiểm thử
 
-- [ ] Thêm test có assertion cho BMI, BMR, TDEE, mục tiêu calo và tính macro.
-- [ ] Thêm contract test cho 12 lớp: checkpoint labels, `MODEL_CLASS_MAP`, `FOOD_CLASSES`, display map và `nutrition_db.json`.
-- [ ] Thêm model smoke test xác định với ảnh fixture có kết quả mong đợi; không dùng demo ngẫu nhiên.
-- [ ] Kiểm thử no-detection, unknown label, nhiều box cùng lớp, món trùng và lịch sử rỗng.
-- [ ] Kiểm thử lưu/đọc/xóa history theo chiến lược privacy đã chọn.
-- [ ] Chọn một lệnh release duy nhất, ví dụ `python -m pytest`, và chỉ release khi lệnh này pass.
+- [x] Thêm test có assertion cho BMI, BMR, TDEE, mục tiêu calo và tính macro.
+- [x] Thêm contract test cho 12 lớp: checkpoint labels, `MODEL_CLASS_MAP`, `FOOD_CLASSES`, display map và `nutrition_db.json`.
+- [x] Thêm model smoke test xác định với ảnh fixture Bánh mì và Baseline B thật; không dùng demo ngẫu nhiên.
+- [x] Kiểm thử no-detection, unknown label, nhiều box cùng lớp, món trùng và lịch sử rỗng.
+- [x] Kiểm thử lưu/đọc/xóa history theo session và xóa API key tạm khỏi session.
+- [x] Khóa release gate là `python -m pytest -q`; kết quả ngày 2026-08-09 là `66 passed, 1 skipped`.
+
+Test bị skip duy nhất là live Google LLM, chỉ chạy khi đặt `RUN_LIVE_LLM_TEST=1`; release gate mặc định không phụ thuộc mạng hoặc secret.
 
 **Hoàn thành khi:** Luồng `upload -> detection -> HITL -> nutrition -> advice -> history` có kiểm thử và lỗi kiểm thử làm command thất bại rõ ràng.
 
@@ -515,10 +518,10 @@ Mỗi test case phải được ghi vào `PROGRESS.md` với input, expected res
 
 ### 10.3 Việc bắt đầu ngay
 
-1. Hoàn tất Phase C bằng test ảnh biên, HITL, LLM fallback và giao diện điện thoại.
-2. Ghi từng test case và kết quả vào `PROGRESS.md` để dùng trong báo cáo.
-3. Sau khi Phase C ổn định, chuyển sang Phase D và thiết lập release gate tự động.
+1. Thêm `GEMINI_API_KEY` và `NGROK_AUTHTOKEN` vào `.env` khi sẵn sàng kiểm tra live; không commit secret.
+2. So sánh nhanh model Gemini/Gemma bằng cùng prompt rồi khóa `GOOGLE_MODEL` theo kết quả thực tế.
+3. Hoàn tất kiểm tra trực quan desktop/điện thoại qua HTTPS, sau đó chuyển sang Phase E.
 
 ---
 
-*Phiên bản: 2.4 | Cập nhật: 2026-08-06 | Trạng thái: Phase A-B hoàn tất; Phase C đang kiểm thử và hoàn thiện luồng người dùng.*
+*Phiên bản: 2.5 | Cập nhật: 2026-08-09 | Trạng thái: Phase A-B và D hoàn tất; C1-C4 pass, C5 còn kiểm tra trực quan trên điện thoại thật.*

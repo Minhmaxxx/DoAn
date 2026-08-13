@@ -79,7 +79,7 @@ def main():
         <div class="feature-card">
             <div class="feature-index">03</div>
             <h3>Tư vấn Cá nhân hóa</h3>
-            <p>Trí tuệ nhân tạo Gemini/GPT phân tích dữ liệu sinh trắc học 
+            <p>Trí tuệ nhân tạo Gemini/Gemma/GPT phân tích dữ liệu sinh trắc học
             và thực đơn của bạn, đưa ra lời khuyên bằng tiếng Việt.</p>
         </div>
         """, unsafe_allow_html=True)
@@ -142,10 +142,14 @@ def _show_system_status():
         runtime_config = st.session_state.get("llm_runtime_config", {})
         provider = runtime_config.get("provider", config.LLM_PROVIDER)
         runtime_key = runtime_config.get(f"{provider}_api_key", "").strip()
-        environment_key = config.GEMINI_API_KEY if provider == "gemini" else config.OPENAI_API_KEY
+        environment_key = config.GEMINI_API_KEY if provider == "google" else config.OPENAI_API_KEY
         has_key = bool(runtime_key or environment_key)
-        if has_key:
-            st.success(f"LLM {provider.capitalize()} đã cấu hình")
+        if provider not in {"google", "openai"}:
+            st.error(f"LLM_PROVIDER không hợp lệ: {provider}")
+        elif has_key and provider == "google":
+            st.success(f"Google AI · {config.GOOGLE_MODEL}")
+        elif has_key:
+            st.success(f"OpenAI · {config.OPENAI_MODEL}")
         else:
             st.info("Chưa có API key · dùng tư vấn mẫu")
 

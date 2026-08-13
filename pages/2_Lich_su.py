@@ -14,6 +14,7 @@ ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
 from utils.nutrition import calculate_goal_calories, calculate_bmr, calculate_tdee
+from utils.history import sort_meal_history
 from utils.visualization import daily_calorie_chart, macro_donut_chart
 from utils.state import initialize_session_state
 
@@ -34,7 +35,7 @@ initialize_session_state()
 
 def load_all_history() -> list[dict]:
     """Return meal history belonging only to the active browser session."""
-    return sorted(st.session_state.meal_history, key=lambda r: r["timestamp"], reverse=True)
+    return sort_meal_history(st.session_state.meal_history)
 
 
 def main():

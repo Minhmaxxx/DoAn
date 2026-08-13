@@ -1,6 +1,6 @@
 """
 utils/llm.py — LLM Integration for Nutrition Advice
-Supports Google Gemini and OpenAI GPT with graceful fallback.
+Supports Google-hosted Gemini/Gemma and OpenAI GPT with graceful fallback.
 """
 
 from __future__ import annotations
@@ -12,6 +12,9 @@ from typing import Generator, Optional
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 import config
+
+
+SUPPORTED_PROVIDERS = {"google", "openai"}
 
 
 # ─── Prompt Template ─────────────────────────────────────────────────────────
@@ -66,6 +69,12 @@ def build_nutrition_prompt(
         for item in meal_data.get("foods", [])
     ])
 
+    target_calories = goal_data.get("target_calories", 2000) or 2000
+    try:
+        target_calories = max(float(target_calories), 1.0)
+    except (TypeError, ValueError):
+        target_calories = 2000.0
+
     prompt = f"""
 ## Thông tin người dùng
 - **Tuổi:** {biometrics.get('age', '?')} tuổi | **Giới tính:** {biometrics.get('gender', '?')}
@@ -74,14 +83,14 @@ def build_nutrition_prompt(
 - **Mức độ vận động:** {biometrics.get('activity_level', '?')}
 - **TDEE:** {biometrics.get('tdee', '?')} kcal/ngày
 - **Mục tiêu sức khỏe:** {goal_data.get('goal_name', '?')}
-- **Mục tiêu calo/ngày:** {goal_data.get('target_calories', '?')} kcal
+- **Mục tiêu calo/ngày:** {target_calories:g} kcal
 
 ## Bữa ăn vừa phân tích (HITL-adjusted)
 {foods_str}
 
 **Tổng kết bữa ăn:**
 - Calo: **{meal_data.get('total_calories', 0)} kcal**
-  (= {round(meal_data.get('total_calories', 0) / goal_data.get('target_calories', 2000) * 100, 1)}% mục tiêu ngày)
+  (= {round(meal_data.get('total_calories', 0) / target_calories * 100, 1)}% mục tiêu ngày)
 - Carb: {meal_data.get('carbohydrate_g', 0)}g
 - Protein: {meal_data.get('protein_g', 0)}g
 - Fat: {meal_data.get('fat_g', 0)}g
@@ -101,7 +110,7 @@ Hãy phân tích bữa ăn này và đưa ra lời khuyên cá nhân hóa dựa 
 
 class NutriLLM:
     """
-    Unified LLM interface supporting Gemini and OpenAI.
+    Unified LLM interface supporting Google GenAI and OpenAI.
 
     Usage
     -----
@@ -113,39 +122,42 @@ class NutriLLM:
     def __init__(
         self,
         provider: Optional[str] = None,
-        gemini_api_key: Optional[str] = None,
+        google_api_key: Optional[str] = None,
         openai_api_key: Optional[str] = None,
     ):
-        self.provider = provider or config.LLM_PROVIDER
-        self.gemini_api_key = (
-            config.GEMINI_API_KEY if gemini_api_key is None else gemini_api_key
+        self.provider = (provider or config.LLM_PROVIDER).strip().lower()
+        self.google_api_key = (
+            config.GEMINI_API_KEY if google_api_key is None else google_api_key
         )
         self.openai_api_key = (
             config.OPENAI_API_KEY if openai_api_key is None else openai_api_key
         )
-        self._gemini_model = None
+        self._google_client = None
         self._openai_client = None
 
     def is_configured(self) -> bool:
         """Check if an API key is available."""
-        if self.provider == "gemini":
-            return bool(self.gemini_api_key)
-        return bool(self.openai_api_key)
+        if self.provider == "google":
+            return bool(self.google_api_key)
+        if self.provider == "openai":
+            return bool(self.openai_api_key)
+        return False
 
-    def _get_gemini(self):
-        """Lazy-init Gemini client."""
-        if self._gemini_model is None:
-            import google.generativeai as genai
-            genai.configure(api_key=self.gemini_api_key)
-            self._gemini_model = genai.GenerativeModel(
-                model_name=config.GEMINI_MODEL,
-                system_instruction=SYSTEM_PROMPT,
-                generation_config={
-                    "max_output_tokens": config.LLM_MAX_TOKENS,
-                    "temperature": config.LLM_TEMPERATURE,
-                },
-            )
-        return self._gemini_model
+    def _get_google(self):
+        """Lazy-init the Google GenAI client used by Gemini and Gemma."""
+        if self._google_client is None:
+            from google import genai
+
+            self._google_client = genai.Client(api_key=self.google_api_key)
+        return self._google_client
+
+    @staticmethod
+    def _google_generation_config() -> dict:
+        return {
+            "system_instruction": SYSTEM_PROMPT,
+            "max_output_tokens": config.LLM_MAX_TOKENS,
+            "temperature": config.LLM_TEMPERATURE,
+        }
 
     def _get_openai(self):
         """Lazy-init OpenAI client."""
@@ -153,6 +165,18 @@ class NutriLLM:
             from openai import OpenAI
             self._openai_client = OpenAI(api_key=self.openai_api_key)
         return self._openai_client
+
+    def close(self) -> None:
+        """Release HTTP clients after a generated response or stream."""
+        for attribute in ("_google_client", "_openai_client"):
+            client = getattr(self, attribute)
+            close = getattr(client, "close", None)
+            if callable(close):
+                try:
+                    close()
+                except Exception:
+                    pass
+            setattr(self, attribute, None)
 
     def generate_advice(
         self,
@@ -170,14 +194,21 @@ class NutriLLM:
         """
         prompt = build_nutrition_prompt(biometrics, meal_data, goal_data)
 
+        if self.provider not in SUPPORTED_PROVIDERS:
+            return self._provider_error()
+
         if not self.is_configured():
             return self._demo_advice(meal_data, goal_data)
 
         try:
-            if self.provider == "gemini":
-                model = self._get_gemini()
-                response = model.generate_content(prompt)
-                return response.text
+            if self.provider == "google":
+                client = self._get_google()
+                response = client.models.generate_content(
+                    model=config.GOOGLE_MODEL,
+                    contents=prompt,
+                    config=self._google_generation_config(),
+                )
+                return response.text or ""
 
             else:  # openai
                 client = self._get_openai()
@@ -190,13 +221,12 @@ class NutriLLM:
                     max_tokens=config.LLM_MAX_TOKENS,
                     temperature=config.LLM_TEMPERATURE,
                 )
-                return response.choices[0].message.content
+                return response.choices[0].message.content or ""
 
-        except Exception as e:
-            return (
-                f" **Lỗi kết nối AI:** {e}\n\n"
-                "Vui lòng kiểm tra API key và thử lại."
-            )
+        except Exception:
+            return self._connection_error()
+        finally:
+            self.close()
 
     def stream_advice(
         self,
@@ -214,17 +244,26 @@ class NutriLLM:
         """
         prompt = build_nutrition_prompt(biometrics, meal_data, goal_data)
 
+        if self.provider not in SUPPORTED_PROVIDERS:
+            yield self._provider_error()
+            return
+
         if not self.is_configured():
             yield self._demo_advice(meal_data, goal_data)
             return
 
         try:
-            if self.provider == "gemini":
-                model = self._get_gemini()
-                stream = model.generate_content(prompt, stream=True)
+            if self.provider == "google":
+                client = self._get_google()
+                stream = client.models.generate_content_stream(
+                    model=config.GOOGLE_MODEL,
+                    contents=prompt,
+                    config=self._google_generation_config(),
+                )
                 for chunk in stream:
-                    if chunk.text:
-                        yield chunk.text
+                    text = getattr(chunk, "text", "")
+                    if text:
+                        yield text
 
             else:  # openai
                 client = self._get_openai()
@@ -243,13 +282,32 @@ class NutriLLM:
                     if delta:
                         yield delta
 
-        except Exception as e:
-            yield f"\n\n **Lỗi kết nối AI:** {e}\n\nVui lòng kiểm tra API key."
+        except Exception:
+            yield self._connection_error()
+        finally:
+            self.close()
+
+    def _provider_error(self) -> str:
+        return (
+            "**Cấu hình LLM không hợp lệ.** "
+            "Hãy đặt `LLM_PROVIDER=google` hoặc `LLM_PROVIDER=openai`."
+        )
+
+    @staticmethod
+    def _connection_error() -> str:
+        return (
+            "**Lỗi kết nối AI.** Không thể tạo tư vấn lúc này. "
+            "Vui lòng kiểm tra API key, model, kết nối mạng hoặc hạn mức sử dụng."
+        )
 
     def _demo_advice(self, meal_data: dict, goal_data: dict) -> str:
         """Return demo advice when no API key is configured."""
         total_cal = meal_data.get("total_calories", 0)
-        target_cal = goal_data.get("target_calories", 2000)
+        target_cal = goal_data.get("target_calories", 2000) or 2000
+        try:
+            target_cal = max(float(target_cal), 1.0)
+        except (TypeError, ValueError):
+            target_cal = 2000.0
         remaining = target_cal - total_cal
 
         return f"""

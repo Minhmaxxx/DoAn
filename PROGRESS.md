@@ -1,7 +1,7 @@
 # NutriVision Progress Record
 
 **Cập nhật:** 2026-08-09<br>
-**Trạng thái hiện tại:** Phase A và B hoàn tất; Phase C đang tiếp tục sau khi xử lý privacy, môi trường và cleanup.
+**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, C5 còn kiểm tra trực quan trên điện thoại thật và live LLM đang chờ API key.
 
 Tài liệu này lưu lại các quyết định, kết quả kiểm tra và bằng chứng có thể dùng khi viết báo cáo hoặc tiếp tục phát triển.
 
@@ -179,19 +179,61 @@ Giới hạn được ghi nhận:
 
 Regression check sau thay đổi: `test_imports.py`, `pip check` và render bằng `AppTest` cho trang chủ cùng bốn trang chức năng đều pass.
 
+### 2026-08-09 - Google LLM, C5 local và Phase D release gate
+
+**Mục tiêu:** cấu hình một adapter Google dùng được cho cả Gemini/Gemma, tăng độ an toàn responsive/session key và chuyển các kiểm tra thủ công quan trọng thành một release gate có assertion.
+
+Thay đổi sản phẩm:
+
+- Thay SDK `google-generativeai` đã deprecated bằng `google-genai`; `.venv311` dùng `google-genai 2.17.0` và đã gỡ SDK cũ.
+- Đổi provider Google thành `LLM_PROVIDER=google`; model được chọn qua `GOOGLE_MODEL`, mặc định `gemini-3.5-flash`. Model Gemma hosted có thể dùng cùng adapter bằng cách thay đúng model ID từ AI Studio.
+- Cập nhật `.env.example` nhưng không tạo hoặc commit `.env`; API key thật vẫn chỉ nằm trong environment hoặc Streamlit session.
+- Thêm cảnh báo rằng dữ liệu sinh trắc học và bữa ăn được gửi tới provider khi người dùng yêu cầu tư vấn.
+- Không còn trả exception thô của SDK ra UI, tránh lộ key hoặc chi tiết request trong lỗi.
+- AppTest phát hiện nút xóa API key chỉ xóa runtime config nhưng widget password có thể được Streamlit khôi phục sau rerun. Đã sửa để đặt cả hai password field về chuỗi rỗng và thêm regression test.
+- Tách xử lý ảnh sang `utils/images.py`; giới hạn đồng thời tổng pixel và cạnh dài, giữ EXIF transpose và resize trước RGB.
+- Tách record/sort history sang `utils/history.py`; history vẫn chỉ được append, đọc và xóa trong session hiện tại.
+- Bổ sung responsive safeguards cho tab, radio, uploader/camera, metric, Plotly, dataframe và Markdown dài.
+- Đồng bộ emoji Bún bò Huế giữa `config.py` và nutrition DB sau khi contract test phát hiện chênh lệch.
+
+Release suite:
+
+- Thêm `pytest.ini` và test cho nutrition, hợp đồng 12 lớp, image input, session history, Google/OpenAI adapter mock, lỗi provider/key, năm Streamlit page và responsive CSS.
+- Model smoke test dùng checkpoint Baseline B thật và fixture benchmark có SHA-256 `07fb336590bd3a8e7209e13f90ebfdda04fb0b1e2f2f53f905e8179e56467c7d`.
+- Pipeline test xác nhận fixture trả `banh_mi` với confidence tối thiểu `0.60`, tổng chuẩn `380 kcal`, tạo prompt, sample advice và record history; một fixture negative trả danh sách rỗng.
+- Test live Google LLM được đánh dấu `live` và chỉ chạy khi `RUN_LIVE_LLM_TEST=1`, nên release mặc định không tiêu quota hoặc phụ thuộc mạng.
+
+Kết quả xác minh:
+
+| Lệnh/kiểm tra | Kết quả |
+|---|---|
+| `python -m pytest -q` | `66 passed, 1 skipped` trong `12.08s`; skip duy nhất là live LLM |
+| `python test_imports.py` | Pass config, nutrition, fallback, chart và checksum Baseline B |
+| `python -m pip check` | `No broken requirements found` |
+| Khởi tạo `google.genai.Client` bằng key giả, không gọi mạng | Pass; client được tạo và đóng |
+| Streamlit health endpoint local | `ok` |
+| `AppTest` | Trang chủ và bốn page chức năng render không exception |
+| Secret pattern scan | Không tìm thấy Google/OpenAI/ngrok token có dạng secret trong source/tài liệu |
+| `git diff --check` | Không có lỗi whitespace |
+
+Giới hạn còn lại:
+
+- Chưa có `GEMINI_API_KEY`, nên chưa gọi live Gemini/Gemma và chưa khóa model cuối bằng thử nghiệm cùng prompt.
+- Chưa có `NGROK_AUTHTOKEN` và điện thoại thật trong phiên kiểm tra, nên camera/touch/layout thực tế qua HTTPS vẫn pending.
+- Edge headless chỉ chụp được loading state bất đồng bộ của Streamlit; ảnh đó không được dùng làm bằng chứng responsive.
+- Checkpoint và benchmark image fixture đang gitignored. Release gate pass trên workspace hiện tại, nhưng clean clone cần cơ chế phân phối/xác minh artifact ở Phase E.
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
-### Phase C - Hoàn thiện luồng người dùng
+### Phase C5 - Kiểm tra thủ công còn lại
 
-- Kiểm tra ảnh một món, nhiều món, không có món, ảnh lỗi và ảnh lớn.
-- Kiểm tra HITL tại `0.25x`, `1.0x`, `3.0x`; xác nhận calo và macro thay đổi đúng.
-- Kiểm tra fallback khi không có API key, key không hợp lệ hoặc LLM lỗi mạng.
-- Kiểm tra giao diện upload, bảng dinh dưỡng, tư vấn dài và biểu đồ trên điện thoại.
+- Khi có `NGROK_AUTHTOKEN`, mở HTTPS tunnel và kiểm tra navigation, upload/camera, bảng, tư vấn dài, biểu đồ và thao tác cảm ứng trên điện thoại thật.
+- Chụp bằng chứng desktop/mobile và ghi input, expected, actual vào tài liệu này.
 
-### Phase D - Release gate
+### Live Google LLM
 
-- Thêm automated tests cho BMI/BMR/TDEE, macro, nutrition DB, label contract, history và model smoke test.
-- Thiết lập một lệnh release test trả non-zero khi thất bại.
+- Khi có `GEMINI_API_KEY`, chạy `RUN_LIVE_LLM_TEST=1` với test marker `live`.
+- Dùng cùng prompt tổng hợp để so sánh nhanh model Gemini và Gemma được AI Studio cung cấp; ghi model ID, latency, format và lỗi nếu có rồi khóa `GOOGLE_MODEL`.
 
 ### Phase E - Báo cáo và demo
 

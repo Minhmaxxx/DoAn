@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)](https://python.org)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-red?logo=streamlit)](https://streamlit.io)
 [![YOLOv8](https://img.shields.io/badge/YOLOv8-Ultralytics-purple)](https://ultralytics.com)
-[![Gemini](https://img.shields.io/badge/LLM-Google%20Gemini-orange)](https://ai.google.dev)
+[![Google GenAI](https://img.shields.io/badge/LLM-Google%20GenAI-orange)](https://ai.google.dev)
 
 ---
 
@@ -16,7 +16,7 @@
 
 1. **Nhận diện tự động** các món ăn Việt Nam từ ảnh chụp
 2. **Tinh chỉnh khẩu phần** bằng cơ chế Human-in-the-Loop (HITL) 
-3. **Nhận tư vấn dinh dưỡng** cá nhân hóa từ AI (Gemini/GPT)
+3. **Nhận tư vấn dinh dưỡng** cá nhân hóa từ AI (Gemini/Gemma/GPT)
 4. **Theo dõi lịch sử** ăn uống và xu hướng dinh dưỡng
 
 ---
@@ -26,7 +26,7 @@
 ```
 Ảnh đầu vào → YOLOv8n Detection → HITL Slider → Calorie Calculation
                                                            ↓
-User Biometrics (BMI, TDEE) ────────────────→ Prompt Engineering → Gemini/GPT
+User Biometrics (BMI, TDEE) ────────────────→ Prompt Engineering → Gemini/Gemma/GPT
                                                            ↓
                                               Lời khuyên dinh dưỡng (Tiếng Việt)
 ```
@@ -44,7 +44,7 @@ AI không thể ước lượng chính xác thể tích món ăn từ ảnh 2D. 
 | Object Detection | YOLOv8n (Ultralytics) |
 | Transfer Learning | Kaggle GPU |
 | Dataset Labeling | Roboflow |
-| LLM (primary) | Google Gemini |
+| LLM (primary) | Google GenAI SDK, model Gemini hoặc Gemma trên AI Studio |
 | LLM (backup) | OpenAI GPT-4o-mini |
 | Visualization | Plotly Express |
 | Deployment | Streamlit Community Cloud |
@@ -92,9 +92,12 @@ pip install -r requirements.txt
 ```bash
 # Copy template và điền API key
 copy .env.example .env
-# Mở .env và nhập GEMINI_API_KEY của bạn
+# Mở .env, nhập GEMINI_API_KEY và chọn GOOGLE_MODEL
 # Lấy miễn phí tại: https://aistudio.google.com
 ```
+
+`GOOGLE_MODEL` mặc định là `gemini-3.5-flash`. Có thể thay bằng model ID Gemma
+đúng như AI Studio hiển thị mà không cần sửa source code. Không commit file `.env`.
 
 ### 3. Chạy ứng dụng
 
@@ -103,6 +106,16 @@ streamlit run app.py
 ```
 
 Truy cập: `http://localhost:8501`
+
+### Release test
+
+```bash
+python -m pytest -q
+```
+
+Lệnh trên chạy test logic, hợp đồng 12 lớp, ảnh đầu vào, history, LLM mock,
+năm Streamlit page và smoke test Baseline B thật. Live API chỉ chạy khi đặt
+`RUN_LIVE_LLM_TEST=1` và đã có `GEMINI_API_KEY`.
 
 ### Chạy trên điện thoại bằng ngrok
 
@@ -140,14 +153,18 @@ nutrivision/
 ├── pages/
 │   ├── 1_Phan_tich_anh.py   # Food detection + HITL
 │   ├── 2_Lich_su.py         # Meal history
-│   └── 3_Ho_so.py           # User profile
+│   ├── 3_Ho_so.py           # User profile
+│   └── 4_Danh_gia_mo_hinh.py # Frozen A0/A/B benchmark
 ├── models/
 │   ├── detector.py           # YOLOv8 wrapper
 │   └── weights/              # Trained .pt files
 ├── utils/
 │   ├── nutrition.py          # BMI, TDEE calculations
-│   ├── llm.py                # Gemini/GPT integration
+│   ├── llm.py                # Google GenAI/OpenAI integration
+│   ├── images.py             # Decode, EXIF and image limits
+│   ├── history.py            # Session history records
 │   └── visualization.py      # Plotly charts
+├── tests/                    # Pytest release suite
 ├── data/
 │   └── nutrition_db.json     # 12 lớp món ăn, khẩu phần tham khảo
 ├── training/

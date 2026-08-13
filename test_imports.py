@@ -54,7 +54,7 @@ def check_nutrition():
 def check_llm():
     from utils.llm import NutriLLM
 
-    advice = NutriLLM(gemini_api_key="", openai_api_key="")._demo_advice(
+    advice = NutriLLM(google_api_key="", openai_api_key="")._demo_advice(
         {"total_calories": 425},
         {"target_calories": 2000},
     )

@@ -13,11 +13,10 @@ Features:
 import json
 import sys
 import hashlib
-from datetime import datetime
 from pathlib import Path
 
 import streamlit as st
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image
 
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
@@ -35,6 +34,8 @@ from utils.nutrition import (
     get_macro_targets,
 )
 from utils.llm import NutriLLM
+from utils.history import build_meal_record
+from utils.images import ImageInputError, load_uploaded_image
 from utils.visualization import macro_donut_chart, calorie_gauge, macro_progress_bars
 from utils.state import initialize_session_state
 
@@ -85,16 +86,13 @@ def compute_biometrics(profile: dict) -> dict:
 
 def _open_image(source) -> Image.Image | None:
     try:
-        with Image.open(source) as source_image:
-            image = ImageOps.exif_transpose(source_image)
-            if image.width * image.height > config.MAX_IMAGE_PIXELS:
-                image.thumbnail(
-                    (config.MAX_IMAGE_DIMENSION, config.MAX_IMAGE_DIMENSION),
-                    Image.Resampling.LANCZOS,
-                )
-            return image.convert("RGB")
-    except (UnidentifiedImageError, OSError, ValueError):
-        st.error("Không thể đọc ảnh. Hãy chọn file JPG, PNG hoặc WEBP hợp lệ.")
+        return load_uploaded_image(
+            source,
+            max_pixels=config.MAX_IMAGE_PIXELS,
+            max_dimension=config.MAX_IMAGE_DIMENSION,
+        )
+    except ImageInputError as error:
+        st.error(str(error))
         return None
 
 
@@ -334,11 +332,11 @@ def main():
         if get_advice_btn:
             runtime_config = st.session_state.get("llm_runtime_config", {})
             provider = runtime_config.get("provider", config.LLM_PROVIDER)
-            gemini_key = runtime_config.get("gemini_api_key", "").strip() or None
+            google_key = runtime_config.get("google_api_key", "").strip() or None
             openai_key = runtime_config.get("openai_api_key", "").strip() or None
             llm = NutriLLM(
                 provider=provider,
-                gemini_api_key=gemini_key,
+                google_api_key=google_key,
                 openai_api_key=openai_key,
             )
             advice_container = st.empty()
@@ -425,41 +423,7 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
 
 def _save_to_history(meal_data: dict):
     """Save the current meal only within the active browser session."""
-
-    record = {
-        "timestamp": datetime.now().isoformat(),
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "time": datetime.now().strftime("%H:%M"),
-        "meal_type": _guess_meal_type(),
-        "foods": [
-            {
-                "display_name": f["display_name"],
-                "emoji": f["emoji"],
-                "portion_multiplier": f["portion_multiplier"],
-                "calories": f["calories"],
-            }
-            for f in meal_data.get("foods", [])
-        ],
-        "totals": {
-            "calories": meal_data.get("total_calories", 0),
-            "carbohydrate_g": meal_data.get("carbohydrate_g", 0),
-            "protein_g": meal_data.get("protein_g", 0),
-            "fat_g": meal_data.get("fat_g", 0),
-        },
-    }
-    st.session_state.meal_history.append(record)
-
-
-def _guess_meal_type() -> str:
-    hour = datetime.now().hour
-    if 5 <= hour < 11:
-        return "Bữa sáng"
-    elif 11 <= hour < 14:
-        return "Bữa trưa"
-    elif 14 <= hour < 17:
-        return "Bữa phụ chiều"
-    else:
-        return "Bữa tối"
+    st.session_state.meal_history.append(build_meal_record(meal_data))
 
 
 def _render_sample_hint():

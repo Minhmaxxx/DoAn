@@ -37,13 +37,14 @@ initialize_session_state()
 
 def main():
     if st.session_state.pop("clear_demo_credentials", False):
-        for key in (
-            "llm_runtime_config",
-            "demo_gemini_api_key",
-            "demo_openai_api_key",
-            "demo_llm_provider",
-        ):
-            st.session_state.pop(key, None)
+        st.session_state.pop("llm_runtime_config", None)
+        st.session_state.demo_google_api_key = ""
+        st.session_state.demo_openai_api_key = ""
+        st.session_state.demo_llm_provider = (
+            config.LLM_PROVIDER
+            if config.LLM_PROVIDER in {"google", "openai"}
+            else "google"
+        )
 
     st.markdown('<h1 class="page-title"> Hồ sơ Cá nhân</h1>', unsafe_allow_html=True)
     st.markdown(
@@ -204,15 +205,19 @@ def main():
     with st.expander(" Nhập API Key tạm thời (không bắt buộc)", expanded=False):
         st.info(
             "API key chỉ được giữ trong phiên Streamlit hiện tại và không được ghi vào file. "
-            "Key sẽ mất khi bạn refresh hoặc đóng phiên demo."
+            "Key sẽ bị xóa khi phiên demo kết thúc."
+        )
+        st.warning(
+            "Khi yêu cầu tư vấn, tuổi, giới tính, chiều cao, cân nặng, mục tiêu và "
+            "dữ liệu bữa ăn sẽ được gửi tới nhà cung cấp LLM đã chọn."
         )
         col_k1, col_k2 = st.columns(2)
-        gemini_key = col_k1.text_input(
-            "Google Gemini API Key",
+        google_key = col_k1.text_input(
+            "Google AI Studio API Key",
             type="password",
             placeholder="AIza...",
-            help="Lấy miễn phí tại aistudio.google.com",
-            key="demo_gemini_api_key",
+            help="Dùng cho model Gemini hoặc Gemma được AI Studio hỗ trợ.",
+            key="demo_google_api_key",
         )
         openai_key = col_k2.text_input(
             "OpenAI API Key (tuỳ chọn)",
@@ -222,19 +227,23 @@ def main():
         )
 
         runtime_config = st.session_state.get("llm_runtime_config", {})
-        provider_options = ["gemini", "openai"]
+        provider_options = ["google", "openai"]
         default_provider = runtime_config.get("provider", config.LLM_PROVIDER)
         llm_provider = st.selectbox(
             "Nhà cung cấp LLM",
             provider_options,
             index=provider_options.index(default_provider) if default_provider in provider_options else 0,
+            format_func=lambda value: {
+                "google": "Google AI Studio (Gemini/Gemma)",
+                "openai": "OpenAI",
+            }[value],
             key="demo_llm_provider",
         )
 
         if st.button(" Dùng API Key trong phiên demo", key="save_api"):
             st.session_state.llm_runtime_config = {
                 "provider": llm_provider,
-                "gemini_api_key": gemini_key.strip(),
+                "google_api_key": google_key.strip(),
                 "openai_api_key": openai_key.strip(),
             }
             st.success("API key đã được dùng cho phiên demo hiện tại.")
@@ -252,7 +261,7 @@ def main():
        **Công nghệ sử dụng:**
         - **YOLOv8n Baseline B** (Ultralytics) - nhận diện 12 lớp món ăn Việt Nam
         - **Human-in-the-Loop (HITL)** — Slider tinh chỉnh khẩu phần để giảm sai số
-        - **Google Gemini / OpenAI GPT** — Sinh lời khuyên dinh dưỡng cá nhân hóa
+        - **Google Gemini/Gemma / OpenAI GPT** — Sinh lời khuyên dinh dưỡng cá nhân hóa
         - **Streamlit** — Web App Python full-stack
 
        **Giới hạn:**
