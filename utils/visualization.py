@@ -12,18 +12,18 @@ import plotly.express as px
 # ─── Color Theme ─────────────────────────────────────────────────────────────
 
 MACRO_COLORS = {
-    "Carbohydrate": "#4ECDC4",
-    "Protein": "#FF6B6B",
-    "Fat": "#FFD93D",
-    "Chất xơ": "#96CEB4",
+    "Carbohydrate": "#0ea5e9", # Sky Blue
+    "Protein": "#f43f5e",      # Rose Red
+    "Fat": "#eab308",          # Amber Yellow
+    "Chất xơ": "#10b981",      # Emerald Green
 }
 
-CALORIE_GRADIENT = ["#2ECC71", "#F39C12", "#E74C3C"]
+CALORIE_GRADIENT = ["#10b981", "#f59e0b", "#ef4444"]
 
 CHART_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
     plot_bgcolor="rgba(0,0,0,0)",
-    font=dict(family="Inter, sans-serif", color="#e0e0e0"),
+    font=dict(family="Inter, sans-serif", color="#475569"),
     margin=dict(l=10, r=10, t=40, b=10),
 )
 
@@ -75,12 +75,12 @@ def macro_donut_chart(
 
     total_kcal = sum(values)
     fig.update_layout(
-        title=dict(text=title, font=dict(size=16, color="#e0e0e0"), x=0.5),
+        title=dict(text=title, font=dict(size=16, color="#0f172a"), x=0.5),
         annotations=[dict(
             text=f"<b>{total_kcal:.0f}</b><br>kcal",
             x=0.5, y=0.5,
             font_size=18,
-            font_color="#e0e0e0",
+            font_color="#0f172a",
             showarrow=False,
         )],
         showlegend=True,
@@ -90,7 +90,7 @@ def macro_donut_chart(
             y=-0.2,
             xanchor="center",
             x=0.5,
-            font=dict(color="#e0e0e0"),
+            font=dict(color="#475569"),
         ),
        **CHART_LAYOUT,
     )
@@ -112,44 +112,44 @@ def calorie_gauge(
 
     # Color based on progress
     if pct < 80:
-        bar_color = "#4ECDC4"
+        bar_color = "#0ea5e9"  # Sky Blue
     elif pct < 105:
-        bar_color = "#2ECC71"
+        bar_color = "#10b981"  # Emerald Green
     elif pct < 120:
-        bar_color = "#F39C12"
+        bar_color = "#f59e0b"  # Amber Orange
     else:
-        bar_color = "#E74C3C"
+        bar_color = "#ef4444"  # Rose Red
 
     fig = go.Figure(go.Indicator(
         mode="gauge+number+delta",
         value=current_cal,
-        number=dict(suffix=" kcal", font=dict(size=28, color="#e0e0e0")),
+        number=dict(suffix=" kcal", font=dict(size=28, color="#0f172a")),
         delta=dict(
             reference=target_cal,
             valueformat=".0f",
             prefix="Δ",
-            font=dict(size=16),
+            font=dict(size=16, color="#475569"),
         ),
         gauge=dict(
             axis=dict(
                 range=[0, target_cal * 1.5],
-                tickfont=dict(color="#aaa"),
+                tickfont=dict(color="#64748b"),
             ),
             bar=dict(color=bar_color, thickness=0.25),
-            bgcolor="rgba(255,255,255,0.05)",
+            bgcolor="#f1f5f9",
             borderwidth=0,
             steps=[
-                dict(range=[0, target_cal * 0.8], color="rgba(255,255,255,0.03)"),
-                dict(range=[target_cal * 0.8, target_cal], color="rgba(46,204,113,0.08)"),
-                dict(range=[target_cal, target_cal * 1.5], color="rgba(231,76,60,0.08)"),
+                dict(range=[0, target_cal * 0.8], color="#e2e8f0"),
+                dict(range=[target_cal * 0.8, target_cal], color="#dcfce7"),
+                dict(range=[target_cal, target_cal * 1.5], color="#fee2e2"),
             ],
             threshold=dict(
-                line=dict(color="#fff", width=2),
+                line=dict(color="#94a3b8", width=2),
                 thickness=0.75,
                 value=target_cal,
             ),
         ),
-        title=dict(text=f"<b>{title}</b><br>Mục tiêu: {target_cal:.0f} kcal", font=dict(size=14, color="#aaa")),
+        title=dict(text=f"<b>{title}</b><br>Mục tiêu: {target_cal:.0f} kcal", font=dict(size=14, color="#475569")),
     ))
     fig.update_layout(height=280, **CHART_LAYOUT)
     return fig
@@ -167,7 +167,7 @@ def daily_calorie_chart(
     Bar chart showing daily calorie intake vs target over time.
     """
     bar_colors = [
-        "#2ECC71" if c <= target_cal * 1.05 else "#E74C3C"
+        "#10b981" if c <= target_cal * 1.05 else "#ef4444"
         for c in calories
     ]
 
@@ -182,7 +182,7 @@ def daily_calorie_chart(
         opacity=0.85,
         text=[f"{c:.0f}" for c in calories],
         textposition="outside",
-        textfont=dict(color="#e0e0e0", size=12),
+        textfont=dict(color="#475569", size=12),
     ))
 
     # Target line
@@ -191,18 +191,18 @@ def daily_calorie_chart(
         y=[target_cal] * len(dates),
         name=f"Mục tiêu ({target_cal:.0f} kcal)",
         mode="lines",
-        line=dict(color="#FFD93D", dash="dash", width=2),
+        line=dict(color="#f59e0b", dash="dash", width=2),
     ))
 
     fig.update_layout(
-        title=dict(text=title, font=dict(size=16, color="#e0e0e0"), x=0.5),
-        xaxis=dict(tickfont=dict(color="#aaa")),
+        title=dict(text=title, font=dict(size=16, color="#0f172a"), x=0.5),
+        xaxis=dict(tickfont=dict(color="#64748b")),
         yaxis=dict(
             title="kcal",
-            tickfont=dict(color="#aaa"),
-            gridcolor="rgba(255,255,255,0.07)",
+            tickfont=dict(color="#64748b"),
+            gridcolor="#e2e8f0",
         ),
-        legend=dict(font=dict(color="#e0e0e0")),
+        legend=dict(font=dict(color="#475569")),
         bargap=0.25,
        **CHART_LAYOUT,
     )
@@ -235,7 +235,7 @@ def macro_progress_bars(
         y=macros,
         x=[100, 100, 100],
         orientation="h",
-        marker_color="rgba(255,255,255,0.08)",
+        marker_color="#e2e8f0",
         showlegend=False,
     ))
 
@@ -258,16 +258,17 @@ def macro_progress_bars(
 
     fig.update_layout(
         barmode="overlay",
-        title=dict(text=title, font=dict(size=15, color="#e0e0e0"), x=0.5),
+        title=dict(text=title, font=dict(size=15, color="#0f172a"), x=0.5),
         xaxis=dict(
             range=[0, 120],
             title="%",
-            tickfont=dict(color="#aaa"),
-            gridcolor="rgba(255,255,255,0.07)",
+            tickfont=dict(color="#64748b"),
+            gridcolor="#e2e8f0",
         ),
-        yaxis=dict(tickfont=dict(color="#e0e0e0", size=13)),
+        yaxis=dict(tickfont=dict(color="#0f172a", size=13)),
         height=220,
-        legend=dict(font=dict(color="#e0e0e0")),
+        legend=dict(font=dict(color="#475569")),
+        bargap=0.25,
        **CHART_LAYOUT,
     )
     return fig

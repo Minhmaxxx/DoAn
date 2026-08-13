@@ -161,6 +161,12 @@ header[data-testid="stHeader"] {
     display: flex;
     flex-direction: column;
     gap: 1.2rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
 }
 
 .stat-item {
@@ -192,6 +198,13 @@ header[data-testid="stHeader"] {
     padding: 0.75rem 1rem;
     margin-bottom: 0.5rem;
     min-width: 0;
+    transition: all 0.2s ease-in-out;
+}
+
+.food-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
+    background: #f0fdf4;
 }
 
 .food-emoji {
@@ -240,6 +253,12 @@ header[data-testid="stHeader"] {
     border-left: 4px solid #10b981;
     padding: 1.2rem 1.5rem;
     margin-bottom: 1rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
 }
 
 .metric-label {
@@ -404,6 +423,12 @@ header[data-testid="stHeader"] {
     font-weight: 700;
     text-align: center;
     text-decoration: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.st-key-app-navigation [data-testid="stPageLink"] a:hover:not([aria-disabled="true"]) {
+    background: #f1f5f9;
+    color: #0f172a;
 }
 
 .st-key-app-navigation [data-testid="stPageLink"] a[aria-disabled="true"] {
@@ -453,6 +478,13 @@ header[data-testid="stHeader"] {
     border: 1px solid #e2e8f0;
     border-radius: 14px;
     padding: 1.15rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.landing-steps > div:hover,
+.today-panel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(15, 23, 42, 0.04);
 }
 
 .landing-steps span {

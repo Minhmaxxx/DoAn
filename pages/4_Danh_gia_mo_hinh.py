@@ -20,7 +20,7 @@ def load_results() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def metric_chart(overall: pd.DataFrame) -> go.Figure:
-    colors = {"Baseline_A0": "#94A3B8", "Baseline_A": "#4ECDC4", "Baseline_B": "#FF6B6B"}
+    colors = {"Baseline_A0": "#94A3B8", "Baseline_A": "#0ea5e9", "Baseline_B": "#10b981"}
     fig = go.Figure()
     for model_name in overall["model"]:
         row = overall[overall["model"] == model_name].iloc[0]
@@ -37,12 +37,12 @@ def metric_chart(overall: pd.DataFrame) -> go.Figure:
     fig.update_layout(
         barmode="group",
         height=430,
-        yaxis=dict(range=[0, 1.05], title="Điểm", gridcolor="rgba(255,255,255,0.08)"),
+        yaxis=dict(range=[0, 1.05], title="Điểm", gridcolor="#e2e8f0"),
         xaxis_title=None,
         legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#e0e0e0"),
+        font=dict(color="#475569"),
         margin=dict(l=20, r=20, t=60, b=20),
     )
     return fig
