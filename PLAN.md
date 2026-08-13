@@ -10,7 +10,7 @@ NutriVision cần hoàn thiện một luồng có thể kiểm chứng và tri�
 2. Chuyển nhãn gốc của checkpoint sang ID chuẩn dùng trong ứng dụng.
 3. Tra cứu dinh dưỡng và cho phép người dùng điều chỉnh khẩu phần bằng HITL từ `0.25x` đến `3.0x`.
 4. Tính BMI, BMR, TDEE, mục tiêu calo và macro.
-5. Sinh tư vấn tiếng Việt bằng model Gemini/Gemma qua Google GenAI, OpenAI, hoặc nội dung mẫu khi không có API key.
+5. Sinh tư vấn tiếng Việt bằng OpenAI `gpt-4o-mini`, Google Gemini/Gemma hoặc nội dung mẫu khi không có API key.
 6. Lưu và trực quan hóa lịch sử bữa ăn.
 7. So sánh Baseline A và Baseline B trên cùng một benchmark trước khi chọn model triển khai.
 
@@ -501,7 +501,7 @@ Mỗi test case phải được ghi vào `PROGRESS.md` với input, expected res
 - [x] Kiểm thử lưu/đọc/xóa history theo session và xóa API key tạm khỏi session.
 - [x] Khóa release gate là `python -m pytest -q`; kết quả ngày 2026-08-09 là `66 passed, 1 skipped`.
 
-Test bị skip duy nhất là live Google LLM, chỉ chạy khi đặt `RUN_LIVE_LLM_TEST=1`; release gate mặc định không phụ thuộc mạng hoặc secret.
+Test bị skip duy nhất là live LLM, chỉ chạy khi đặt `RUN_LIVE_LLM_TEST=1`; release gate mặc định không phụ thuộc mạng hoặc secret.
 
 **Hoàn thành khi:** Luồng `upload -> detection -> HITL -> nutrition -> advice -> history` có kiểm thử và lỗi kiểm thử làm command thất bại rõ ràng.
 
@@ -518,8 +518,8 @@ Test bị skip duy nhất là live Google LLM, chỉ chạy khi đặt `RUN_LIVE
 
 ### 10.3 Việc bắt đầu ngay
 
-1. Thêm `GEMINI_API_KEY` và `NGROK_AUTHTOKEN` vào `.env` khi sẵn sàng kiểm tra live; không commit secret.
-2. So sánh nhanh model Gemini/Gemma bằng cùng prompt rồi khóa `GOOGLE_MODEL` theo kết quả thực tế.
+1. Khóa LLM triển khai là OpenAI `gpt-4o-mini` qua `LLM_PROVIDER=openai`; không commit API key.
+2. Khi cần kiểm tra live, chạy tư vấn OpenAI với ảnh/meal đại diện và ghi nhận kết quả.
 3. Hoàn tất kiểm tra trực quan desktop/điện thoại qua HTTPS, sau đó chuyển sang Phase E.
 
 ---

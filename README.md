@@ -44,8 +44,8 @@ AI không thể ước lượng chính xác thể tích món ăn từ ảnh 2D. 
 | Object Detection | YOLOv8n (Ultralytics) |
 | Transfer Learning | Kaggle GPU |
 | Dataset Labeling | Roboflow |
-| LLM (primary) | Google GenAI SDK, model Gemini hoặc Gemma trên AI Studio |
-| LLM (backup) | OpenAI GPT-4o-mini |
+| LLM (primary) | OpenAI GPT-4o-mini |
+| LLM (alternative) | Google GenAI SDK, model Gemini hoặc Gemma trên AI Studio |
 | Visualization | Plotly Express |
 | Deployment | Streamlit Community Cloud |
 
@@ -92,20 +92,29 @@ pip install -r requirements.txt
 ```bash
 # Copy template và điền API key
 copy .env.example .env
-# Mở .env, nhập GEMINI_API_KEY và chọn GOOGLE_MODEL
-# Lấy miễn phí tại: https://aistudio.google.com
+# Mở .env, nhập OPENAI_API_KEY
+# Hoặc để trống nếu chỉ muốn dùng nhận diện và tính dinh dưỡng
 ```
 
-`GOOGLE_MODEL` mặc định là `gemini-3.5-flash`. Có thể thay bằng model ID Gemma
-đúng như AI Studio hiển thị mà không cần sửa source code. Không commit file `.env`.
+`LLM_PROVIDER` mặc định là `openai` với `OPENAI_MODEL=gpt-4o-mini`. Có thể chuyển
+sang `google` và thay `GOOGLE_MODEL` bằng model Gemini/Gemma đúng như AI Studio
+hiển thị mà không cần sửa source code. Không commit file `.env` hoặc API key.
+
+Sau khi mở app, vào trang **Hồ sơ** để bật/tắt **Trợ lý dinh dưỡng AI** cho phiên
+hiện tại. Khi tắt, ứng dụng không gửi hồ sơ hoặc dữ liệu bữa ăn đến OpenAI/Google;
+nhận diện, tính dinh dưỡng và lịch sử vẫn hoạt động bình thường.
 
 ### 3. Chạy ứng dụng
 
 ```bash
-streamlit run app.py
+python -m streamlit run app.py --server.port 8501
 ```
 
 Truy cập: `http://localhost:8501`
+
+Trên Windows, có thể chạy `run.bat`; launcher này ưu tiên môi trường `.venv311` và
+bật UTF-8. Luồng khuyến nghị trong ứng dụng là: **Hồ sơ → Phân tích ảnh → bật trợ
+lý nếu cần → Lịch sử**.
 
 ### Release test
 
@@ -115,7 +124,7 @@ python -m pytest -q
 
 Lệnh trên chạy test logic, hợp đồng 12 lớp, ảnh đầu vào, history, LLM mock,
 năm Streamlit page và smoke test Baseline B thật. Live API chỉ chạy khi đặt
-`RUN_LIVE_LLM_TEST=1` và đã có `GEMINI_API_KEY`.
+`RUN_LIVE_LLM_TEST=1` và đã có API key cho provider đang chọn.
 
 ### Chạy trên điện thoại bằng ngrok
 
@@ -125,6 +134,8 @@ năm Streamlit page và smoke test Baseline B thật. Live API chỉ chạy khi 
 4. Mở URL HTTPS được in sau dòng `LINK ĐIỆN THOẠI` trên điện thoại.
 
 URL ngrok chỉ tồn tại khi cửa sổ launcher còn chạy. Đây là link công khai tạm thời; không chia sẻ link hoặc nhập API key nhạy cảm trên một phiên demo đã được chia sẻ.
+
+Nếu launcher báo cổng `8501` đang được dùng, đừng mở thêm một instance. Quay lại cửa sổ app cũ và nhấn `Ctrl+C`; nếu không còn cửa sổ đó, PowerShell có thể tìm và dừng tiến trình bằng `Get-NetTCPConnection -LocalPort 8501 | Select-Object -ExpandProperty OwningProcess` rồi `Stop-Process -Id <PID>`. Hoặc đặt `STREAMLIT_PORT=8502` trong `.env` trước khi chạy `run_ngrok.py`.
 
 ---
 
@@ -172,7 +183,7 @@ nutrivision/
 │   ├── data_collection.py    # Image scraper
 │   └── dataset.yaml          # YOLOv8 dataset config
 └── assets/
-    └── style.css             # Custom dark theme CSS
+    └── style.css             # Light health UI shared CSS
 ```
 
 ---

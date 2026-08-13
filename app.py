@@ -14,12 +14,13 @@ import streamlit as st
 
 import config
 from utils.state import initialize_session_state
+from utils.navigation import render_app_shell
 
 # ─── Page configuration (MUST be first Streamlit call) ───────────────────────
 st.set_page_config(
     page_title=config.APP_TITLE,
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
     menu_items={
         "Get help": "https://github.com/Minhmaxxx/DoAn",
         "About": "## NutriVision\nYOLOv8n Baseline B · 12 lớp · HITL · LLM"
@@ -37,91 +38,34 @@ initialize_session_state()
 # ─── Landing Page ─────────────────────────────────────────────────────────────
 
 def main():
-    # Header
-    st.markdown("""
-    <div class="hero-header">
-        <div class="hero-kicker">PERSONALIZED NUTRITION VISION</div>
-        <h1 class="hero-title">NutriVision</h1>
-        <p class="hero-subtitle">
-            Trợ lý Tư vấn Dinh dưỡng Cá nhân hóa<br>
-            <span class="hero-tagline">YOLOv8n Baseline B · 12 lớp món ăn · Human-in-the-Loop</span>
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(
+        """
+        <section class="landing-hero">
+            <p class="landing-eyebrow">DINH DƯỠNG THEO BỮA ĂN THỰC TẾ</p>
+            <h1>Ăn gì hôm nay, hiểu rõ hôm đó.</h1>
+            <p>NutriVision nhận diện món ăn, để bạn tự xác nhận khẩu phần và theo dõi kết quả theo hồ sơ cá nhân.</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+    primary, secondary = st.columns(2)
+    with primary:
+        if st.button("Thiết lập hồ sơ", type="primary", width="stretch"):
+            st.switch_page("pages/3_Ho_so.py")
+    with secondary:
+        if st.button("Mở không gian của tôi", width="stretch"):
+            st.switch_page("pages/0_Hom_nay.py")
 
-    st.markdown("---")
-
-    # Feature cards
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-index">01</div>
-            <h3>Nhận diện Món ăn</h3>
-            <p>Chụp ảnh bữa ăn và hệ thống tự động nhận diện tên món, 
-            vị trí bằng YOLOv8n được huấn luyện trên 12 lớp món ăn Việt Nam.</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col2:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-index">02</div>
-            <h3>Tinh chỉnh Khẩu phần</h3>
-            <p>Cơ chế Human-in-the-Loop giúp bạn điều chỉnh kích cỡ phần ăn 
-            bằng thanh trượt để tính toán calo chính xác hơn.</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with col3:
-        st.markdown("""
-        <div class="feature-card">
-            <div class="feature-index">03</div>
-            <h3>Tư vấn Cá nhân hóa</h3>
-            <p>Trí tuệ nhân tạo Gemini/Gemma/GPT phân tích dữ liệu sinh trắc học
-            và thực đơn của bạn, đưa ra lời khuyên bằng tiếng Việt.</p>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
-
-    # Quick stats
-    st.markdown("### Bắt đầu ngay")
-    col_a, col_b = st.columns([2, 1])
-
-    with col_a:
-        st.info("""
-       **Hướng dẫn sử dụng:**
-        1.  Điền **Hồ sơ cá nhân** → Trang *Hồ sơ*
-        2.  Tải ảnh bữa ăn → Trang *Phân tích ảnh*
-        3.  Tinh chỉnh khẩu phần bằng slider
-        4.  Nhận lời khuyên dinh dưỡng từ AI
-        5.  Xem lịch sử dinh dưỡng → Trang *Lịch sử*
-        """)
-
-    with col_b:
-        st.markdown("""
-        <div class="stats-card">
-            <div class="stat-item">
-                <span class="stat-number">12</span>
-                <span class="stat-label">Lớp món ăn VN</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">0.901</span>
-                <span class="stat-label">mAP50 benchmark sạch</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-number">B</span>
-                <span class="stat-label">Model triển khai</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    # System status
-    st.markdown("---")
-    st.markdown("### Trạng thái Hệ thống")
-    _show_system_status()
+    st.markdown("### Cách bắt đầu")
+    st.markdown(
+        "<div class='landing-steps'>"
+        "<div><span>01</span><strong>Điền hồ sơ</strong><p>Xác định mục tiêu calo phù hợp.</p></div>"
+        "<div><span>02</span><strong>Phân tích bữa ăn</strong><p>Chụp ảnh và điều chỉnh khẩu phần.</p></div>"
+        "<div><span>03</span><strong>Theo dõi hôm nay</strong><p>Lưu bữa ăn, xem tổng quan hoặc hỏi AI.</p></div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+    st.caption("Dữ liệu hiện chỉ tồn tại trong phiên này. Kết nối bằng khóa cá nhân sẽ được bổ sung khi có hệ thống tài khoản.")
 
 
 def _show_system_status():
@@ -132,7 +76,7 @@ def _show_system_status():
         if config.MODEL_PATH.exists():
             digest = hashlib.sha256(config.MODEL_PATH.read_bytes()).hexdigest()
             if digest == config.MODEL_SHA256:
-                st.success("Baseline B · 12 lớp · checksum hợp lệ")
+                st.success("Mô hình sẵn sàng")
             else:
                 st.error("Checkpoint tồn tại nhưng checksum không hợp lệ")
         else:
@@ -144,21 +88,23 @@ def _show_system_status():
         runtime_key = runtime_config.get(f"{provider}_api_key", "").strip()
         environment_key = config.GEMINI_API_KEY if provider == "google" else config.OPENAI_API_KEY
         has_key = bool(runtime_key or environment_key)
-        if provider not in {"google", "openai"}:
+        if not st.session_state.assistant_enabled:
+            st.info("Trợ lý AI đang tắt")
+        elif provider not in {"google", "openai"}:
             st.error(f"LLM_PROVIDER không hợp lệ: {provider}")
         elif has_key and provider == "google":
-            st.success(f"Google AI · {config.GOOGLE_MODEL}")
+            st.success("Trợ lý Google sẵn sàng")
         elif has_key:
-            st.success(f"OpenAI · {config.OPENAI_MODEL}")
+            st.success("Trợ lý OpenAI sẵn sàng")
         else:
-            st.info("Chưa có API key · dùng tư vấn mẫu")
+            st.info("Chưa có API key")
 
     with col3:
         try:
             with config.NUTRITION_DB_PATH.open(encoding="utf-8") as file:
                 food_count = len(json.load(file)["foods"])
             if food_count == len(config.FOOD_CLASSES):
-                st.success(f"Dinh dưỡng {food_count}/{len(config.FOOD_CLASSES)} món")
+                st.success(f"Dữ liệu {food_count} món sẵn sàng")
             else:
                 st.error(f"Dinh dưỡng mới có {food_count}/{len(config.FOOD_CLASSES)} món")
         except (OSError, KeyError, json.JSONDecodeError) as error:
@@ -166,4 +112,37 @@ def _show_system_status():
 
 
 if __name__ == "__main__":
-    main()
+    landing_page = st.Page(main, title="Giới thiệu", url_path="", default=True)
+    today_page = st.Page(
+        "pages/0_Hom_nay.py",
+        title="Hôm nay",
+        url_path="hom-nay",
+    )
+    analysis_page = st.Page(
+        "pages/1_Phan_tich_anh.py",
+        title="Phân tích",
+        url_path="phan-tich",
+    )
+    history_page = st.Page(
+        "pages/2_Lich_su.py",
+        title="Lịch sử",
+        url_path="lich-su",
+    )
+    profile_page = st.Page(
+        "pages/3_Ho_so.py",
+        title="Hồ sơ",
+        url_path="ho-so",
+    )
+    evaluation_page = st.Page(
+        "pages/4_Danh_gia_mo_hinh.py",
+        title="Đánh giá mô hình",
+        url_path="danh-gia",
+        visibility="hidden",
+    )
+    primary_pages = [today_page, analysis_page, history_page, profile_page]
+    current_page = st.navigation(
+        [landing_page, *primary_pages, evaluation_page],
+        position="hidden",
+    )
+    render_app_shell(current_page, landing_page, primary_pages)
+    current_page.run()

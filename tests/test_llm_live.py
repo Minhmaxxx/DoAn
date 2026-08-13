@@ -1,4 +1,4 @@
-"""Optional synthetic live check for the model selected in GOOGLE_MODEL."""
+"""Optional synthetic live check for the configured LLM provider and model."""
 
 import os
 
@@ -46,12 +46,15 @@ GOAL_DATA = {
 
 
 @pytest.mark.live
-def test_selected_google_model_live():
+def test_selected_llm_model_live():
     if os.getenv("RUN_LIVE_LLM_TEST") != "1":
         pytest.skip("Đặt RUN_LIVE_LLM_TEST=1 để gọi API thật")
-    assert config.GEMINI_API_KEY, "Thiếu GEMINI_API_KEY cho live test"
 
-    advice = NutriLLM(provider="google").generate_advice(
+    key = config.OPENAI_API_KEY if config.LLM_PROVIDER == "openai" else config.GEMINI_API_KEY
+    assert config.LLM_PROVIDER in {"google", "openai"}, "LLM_PROVIDER không hợp lệ"
+    assert key, f"Thiếu API key cho provider {config.LLM_PROVIDER}"
+
+    advice = NutriLLM(provider=config.LLM_PROVIDER).generate_advice(
         BIOMETRICS,
         MEAL_DATA,
         GOAL_DATA,

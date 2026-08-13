@@ -20,17 +20,6 @@ from utils.nutrition import (
 from utils.visualization import macro_donut_chart
 from utils.state import initialize_session_state
 
-# ─── Page Config ─────────────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="Hồ sơ — NutriVision",
-    layout="wide",
-)
-
-css_path = ROOT_DIR / "assets" / "style.css"
-if css_path.exists():
-    with open(css_path, encoding="utf-8") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
 # ─── Init session state ───────────────────────────────────────────────────────
 initialize_session_state()
 
@@ -43,14 +32,11 @@ def main():
         st.session_state.demo_llm_provider = (
             config.LLM_PROVIDER
             if config.LLM_PROVIDER in {"google", "openai"}
-            else "google"
+            else "openai"
         )
 
-    st.markdown('<h1 class="page-title"> Hồ sơ Cá nhân</h1>', unsafe_allow_html=True)
-    st.markdown(
-        "Nhập thông tin sinh trắc học để hệ thống tính toán "
-        "**BMI, BMR, TDEE** và cá nhân hóa lời tư vấn dinh dưỡng."
-    )
+    st.markdown('<h1 class="page-title">Hồ sơ</h1>', unsafe_allow_html=True)
+    st.caption("Dùng để tính mục tiêu dinh dưỡng cá nhân.")
     st.markdown("---")
 
     profile = st.session_state.user_profile
@@ -58,11 +44,11 @@ def main():
 
     # ── Form ───────────────────────────────────────────────────────────────
     with col_form:
-        st.markdown("### Thông tin cơ bản")
+        st.markdown("### Thông tin")
 
         with st.form("profile_form"):
             profile["name"] = st.text_input(
-                "Tên của bạn",
+                "Tên hiển thị",
                 value=profile.get("name", ""),
                 placeholder="Nguyễn Văn A",
             )
@@ -95,7 +81,7 @@ def main():
                 format="%.1f",
             )
 
-            st.markdown("#### Mức độ vận động")
+            st.markdown("Mức độ vận động")
             profile["activity_level"] = st.select_slider(
                 "Chọn mức độ vận động",
                 options=[
@@ -109,7 +95,7 @@ def main():
                 label_visibility="collapsed",
             )
 
-            st.markdown("#### Mục tiêu sức khỏe")
+            st.markdown("Mục tiêu")
             profile["goal"] = st.radio(
                 "Mục tiêu",
                 ["Giảm cân", "Giảm cân nhanh", "Giữ cân", "Tăng cơ", "Tăng cân"],
@@ -121,18 +107,18 @@ def main():
             )
 
             submitted = st.form_submit_button(
-                " Lưu Hồ sơ",
+                "Lưu thay đổi",
                 type="primary",
                 width="stretch",
             )
             if submitted:
                 st.session_state.user_profile = profile
-                st.success(" Đã lưu thông tin hồ sơ!")
+                st.success("Đã lưu.")
                 st.rerun()
 
     # ── Results ────────────────────────────────────────────────────────────
     with col_results:
-        st.markdown("### Chỉ số sức khỏe")
+        st.markdown("### Mục tiêu của bạn")
 
         bmi = calculate_bmi(profile["weight_kg"], profile["height_cm"])
         bmi_cat, bmi_color = classify_bmi(bmi)
@@ -145,7 +131,7 @@ def main():
         # BMI Card
         st.markdown(f"""
         <div class="metric-card" style="border-left: 4px solid {bmi_color};">
-            <div class="metric-label">Chỉ số Khối cơ thể (BMI)</div>
+            <div class="metric-label">BMI</div>
             <div class="metric-value" style="color: {bmi_color};">{bmi}</div>
             <div class="metric-unit">{bmi_cat}</div>
         </div>
@@ -158,22 +144,22 @@ def main():
 
         col_m1, col_m2 = st.columns(2)
         col_m1.metric(
-            " BMR (Trao đổi cơ bản)",
+            "BMR",
             f"{bmr:.0f} kcal/ngày",
             help="Năng lượng cơ thể cần để duy trì sự sống khi nghỉ ngơi hoàn toàn.",
         )
         col_m2.metric(
-            " TDEE (Tổng tiêu hao)",
+            "TDEE",
             f"{tdee:.0f} kcal/ngày",
             help="Tổng năng lượng cơ thể bạn đốt cháy mỗi ngày dựa trên mức vận động.",
         )
 
         st.markdown("---")
-        st.markdown(f"#### Mục tiêu: **{profile['goal']}**")
+        st.markdown(f"Mục tiêu: **{profile['goal']}**")
 
         col_t1, col_t2 = st.columns(2)
         col_t1.metric(
-            "Calo mục tiêu/ngày",
+            "Calo mỗi ngày",
             f"{goal_info['target_calories']:.0f} kcal",
             f"{goal_info['calorie_change']:+.0f} kcal vs TDEE",
         )
@@ -183,12 +169,12 @@ def main():
         )
 
         st.markdown("---")
-        st.markdown("#### Phân bổ Macro Khuyến nghị/ngày")
+        st.markdown("Macro mỗi ngày")
 
         col_m, col_m2, col_m3 = st.columns(3)
-        col_m.metric(" Carbohydrate", f"{macro_targets['carbohydrate_g']:.0f}g")
-        col_m2.metric(" Protein", f"{macro_targets['protein_g']:.0f}g")
-        col_m3.metric(" Fat", f"{macro_targets['fat_g']:.0f}g")
+        col_m.metric("Carb", f"{macro_targets['carbohydrate_g']:.0f}g")
+        col_m2.metric("Protein", f"{macro_targets['protein_g']:.0f}g")
+        col_m3.metric("Fat", f"{macro_targets['fat_g']:.0f}g")
 
         fig = macro_donut_chart(
             macro_targets["carbohydrate_g"],
@@ -200,73 +186,85 @@ def main():
 
     # ── LLM API Config ─────────────────────────────────────────────────────
     st.markdown("---")
-    st.markdown("### Cấu hình API")
+    st.markdown("### Trợ lý AI")
+    assistant_enabled = st.toggle(
+        "Dùng trợ lý AI",
+        key="assistant_enabled",
+        help="Khi tắt, NutriVision không gửi hồ sơ hoặc dữ liệu bữa ăn đến OpenAI/Google.",
+    )
+    if not assistant_enabled:
+        st.session_state.llm_advice = None
+        st.markdown(
+            "<div class='assistant-status assistant-status-off'>"
+            "<strong>Trợ lý đang tắt</strong><span>Ứng dụng không gửi dữ liệu đến AI.</span>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            "<div class='assistant-status assistant-status-on'>"
+            "<strong>Trợ lý đang bật</strong><span>Dữ liệu chỉ được gửi khi bạn nhấn nhận tư vấn.</span>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
-    with st.expander(" Nhập API Key tạm thời (không bắt buộc)", expanded=False):
+    with st.expander("API key tạm thời", expanded=False):
         st.info(
-            "API key chỉ được giữ trong phiên Streamlit hiện tại và không được ghi vào file. "
-            "Key sẽ bị xóa khi phiên demo kết thúc."
+            "Chỉ dùng trong phiên này và không ghi vào file."
         )
         st.warning(
-            "Khi yêu cầu tư vấn, tuổi, giới tính, chiều cao, cân nặng, mục tiêu và "
-            "dữ liệu bữa ăn sẽ được gửi tới nhà cung cấp LLM đã chọn."
+            "Khi yêu cầu tư vấn, hồ sơ và bữa ăn hiện tại sẽ được gửi tới nhà cung cấp đã chọn."
         )
         col_k1, col_k2 = st.columns(2)
-        google_key = col_k1.text_input(
-            "Google AI Studio API Key",
-            type="password",
-            placeholder="AIza...",
-            help="Dùng cho model Gemini hoặc Gemma được AI Studio hỗ trợ.",
-            key="demo_google_api_key",
-        )
-        openai_key = col_k2.text_input(
+        openai_key = col_k1.text_input(
             "OpenAI API Key (tuỳ chọn)",
             type="password",
             placeholder="sk-...",
             key="demo_openai_api_key",
         )
+        google_key = col_k2.text_input(
+            "Google AI Studio API Key (tuỳ chọn)",
+            type="password",
+            placeholder="AIza...",
+            help="Dùng cho model Gemini hoặc Gemma được AI Studio hỗ trợ.",
+            key="demo_google_api_key",
+        )
 
         runtime_config = st.session_state.get("llm_runtime_config", {})
-        provider_options = ["google", "openai"]
+        provider_options = ["openai", "google"]
         default_provider = runtime_config.get("provider", config.LLM_PROVIDER)
         llm_provider = st.selectbox(
             "Nhà cung cấp LLM",
             provider_options,
             index=provider_options.index(default_provider) if default_provider in provider_options else 0,
             format_func=lambda value: {
-                "google": "Google AI Studio (Gemini/Gemma)",
                 "openai": "OpenAI",
+                "google": "Google AI Studio (Gemini/Gemma)",
             }[value],
             key="demo_llm_provider",
         )
 
-        if st.button(" Dùng API Key trong phiên demo", key="save_api"):
+        if st.button("Dùng key cho phiên này", key="save_api"):
             st.session_state.llm_runtime_config = {
                 "provider": llm_provider,
                 "google_api_key": google_key.strip(),
                 "openai_api_key": openai_key.strip(),
             }
-            st.success("API key đã được dùng cho phiên demo hiện tại.")
+            st.success("Đã cập nhật API key.")
 
-        if st.button(" Xóa API Key khỏi phiên demo", key="clear_api"):
+        if st.button("Xóa API key", key="clear_api"):
             st.session_state.clear_demo_credentials = True
             st.rerun()
 
     # ── About project ──────────────────────────────────────────────────────
     st.markdown("---")
-    with st.expander(" Về Dự án"):
+    with st.expander("Về ứng dụng"):
         st.markdown("""
        **NutriVision** là đồ án tốt nghiệp ngành Khoa học Máy tính.
 
-       **Công nghệ sử dụng:**
-        - **YOLOv8n Baseline B** (Ultralytics) - nhận diện 12 lớp món ăn Việt Nam
-        - **Human-in-the-Loop (HITL)** — Slider tinh chỉnh khẩu phần để giảm sai số
-        - **Google Gemini/Gemma / OpenAI GPT** — Sinh lời khuyên dinh dưỡng cá nhân hóa
-        - **Streamlit** — Web App Python full-stack
+        NutriVision nhận diện 12 món ăn Việt Nam, sau đó dùng khẩu phần bạn xác nhận để tính dinh dưỡng.
 
-       **Giới hạn:**
-        Hệ thống không thay thế tư vấn y tế chuyên nghiệp.
-        Độ chính xác calo phụ thuộc vào chất lượng ảnh và hiệu chỉnh HITL của người dùng.
+        Kết quả chỉ mang tính tham khảo, không thay thế tư vấn y tế.
         """)
 
 

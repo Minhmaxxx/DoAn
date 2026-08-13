@@ -26,3 +26,5 @@ def initialize_session_state() -> None:
 
     st.session_state.setdefault("meal_history", [])
     st.session_state.setdefault("current_meal", None)
+    # The assistant is optional; credentials may stay configured while it is off.
+    st.session_state.setdefault("assistant_enabled", True)

@@ -9,6 +9,7 @@ from streamlit.testing.v1 import AppTest
 ROOT_DIR = Path(__file__).resolve().parents[1]
 APP_FILES = [
     ROOT_DIR / "app.py",
+    ROOT_DIR / "pages" / "0_Hom_nay.py",
     ROOT_DIR / "pages" / "1_Phan_tich_anh.py",
     ROOT_DIR / "pages" / "2_Lich_su.py",
     ROOT_DIR / "pages" / "3_Ho_so.py",
@@ -31,6 +32,14 @@ def test_responsive_css_keeps_mobile_navigation_and_overflow_guards():
     assert '[data-testid="stDataFrame"]' in css
     assert '[data-baseweb="tab-list"]' in css
     assert '[data-testid="stRadio"] [role="radiogroup"]' in css
+    assert "min-height: 44px" in css
+    assert "padding-bottom: 6rem" in css
+    navigation = (ROOT_DIR / "utils" / "navigation.py").read_text(encoding="utf-8")
+    assert "render_app_shell" in navigation
+    assert "st.page_link" in navigation
+    assert ".st-key-app-shell" in css
+    assert '[data-testid="stExpandSidebarButton"]' in css
+    assert '[data-testid="stSidebar"]' in css
 
 
 def test_history_clear_only_changes_active_session():
@@ -60,33 +69,46 @@ def test_history_clear_only_changes_active_session():
     ]
     app.run()
     clear_button = next(
-        button for button in app.button if "Xóa tất cả lịch sử" in button.label
+        button for button in app.button if "Xóa tất cả" in button.label
     )
     clear_button.click().run()
     assert app.session_state["meal_history"] == []
     assert not app.exception
 
 
-def test_temporary_google_key_can_be_saved_and_cleared_from_session():
+def test_temporary_openai_key_can_be_saved_and_cleared_from_session():
     app = AppTest.from_file(
         str(ROOT_DIR / "pages" / "3_Ho_so.py"), default_timeout=45
     )
     app.run()
-    google_key = next(
-        field for field in app.text_input if field.label == "Google AI Studio API Key"
+    openai_key = next(
+        field for field in app.text_input if field.label == "OpenAI API Key (tuỳ chọn)"
     )
     save_button = next(
-        button for button in app.button if "Dùng API Key trong phiên demo" in button.label
+        button for button in app.button if "Dùng key cho phiên này" in button.label
     )
-    google_key.input("session-test-key")
+    openai_key.input("session-test-key")
     save_button.click().run()
-    assert app.session_state["llm_runtime_config"]["google_api_key"] == "session-test-key"
+    assert app.session_state["llm_runtime_config"]["openai_api_key"] == "session-test-key"
 
     clear_button = next(
-        button for button in app.button if "Xóa API Key khỏi phiên demo" in button.label
+        button for button in app.button if "Xóa API key" in button.label
     )
     clear_button.click().run()
     assert "llm_runtime_config" not in app.session_state.filtered_state
     assert app.session_state["demo_google_api_key"] == ""
     assert app.session_state["demo_openai_api_key"] == ""
+    assert not app.exception
+
+
+def test_assistant_can_be_disabled_for_the_active_session():
+    app = AppTest.from_file(
+        str(ROOT_DIR / "pages" / "3_Ho_so.py"), default_timeout=45
+    )
+    app.run()
+    assistant_toggle = next(
+        toggle for toggle in app.toggle if toggle.label == "Dùng trợ lý AI"
+    )
+    assistant_toggle.set_value(False).run()
+    assert app.session_state["assistant_enabled"] is False
     assert not app.exception

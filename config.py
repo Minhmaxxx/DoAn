@@ -25,7 +25,7 @@ MODEL_SHA256 = "18b8f1dd160a4b6df6ae0f4dc31d00ec729722daefafdc50422dc9e36d845998
 ENABLE_RANDOM_DEMO = os.getenv("ENABLE_RANDOM_DEMO", "false").lower() == "true"
 
 # ─── LLM Settings ────────────────────────────────────────────────────────────
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "google").strip().lower()
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai").strip().lower()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 

@@ -24,8 +24,8 @@ mindmap
           BMR TDEE calo mục tiêu
           Macro mục tiêu
         API tạm trong session
+          OpenAI gpt-4o-mini mặc định
           Google AI Studio Gemini hoặc Gemma
-          OpenAI
           Cảnh báo dữ liệu gửi tới LLM
       Phân tích ảnh
         Bước 1 chọn ảnh
@@ -91,8 +91,9 @@ mindmap
         Nutrition
         Advice
         History
-      AI advice
+    AI advice
         Chọn provider và model
+        OpenAI gpt-4o-mini là demo chính
         Có key gọi API
         Không key sample advice
         Lỗi API message an toàn
@@ -124,9 +125,10 @@ mindmap
         Error invalid image model API
         Empty no upload no history no detection
     Kỹ thuật và release
+      OpenAI
+        gpt-4o-mini mặc định qua env
       Google GenAI SDK
-        GOOGLE_MODEL đổi Gemini Gemma qua env
-      OpenAI backup
+        Google là phương án thay thế
       Pytest release gate
         Logic contracts images history LLM mock
         AppTest 5 pages

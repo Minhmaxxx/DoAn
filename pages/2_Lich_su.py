@@ -18,17 +18,6 @@ from utils.history import sort_meal_history
 from utils.visualization import daily_calorie_chart, macro_donut_chart
 from utils.state import initialize_session_state
 
-# ─── Page Config ─────────────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="Lịch sử — NutriVision",
-    layout="wide",
-)
-
-css_path = ROOT_DIR / "assets" / "style.css"
-if css_path.exists():
-    with open(css_path, encoding="utf-8") as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
 # ─── Init state ───────────────────────────────────────────────────────────────
 initialize_session_state()
 
@@ -39,17 +28,15 @@ def load_all_history() -> list[dict]:
 
 
 def main():
-    st.markdown('<h1 class="page-title"> Lịch sử Dinh dưỡng</h1>', unsafe_allow_html=True)
-    st.markdown("Theo dõi tiến trình ăn uống và xu hướng dinh dưỡng theo thời gian.")
+    st.markdown('<h1 class="page-title">Lịch sử</h1>', unsafe_allow_html=True)
+    st.caption("Các bữa ăn đã lưu trong phiên hiện tại.")
     st.markdown("---")
 
     history = load_all_history()
 
     if not history:
         st.info(
-            " Chưa có dữ liệu lịch sử. "
-            "Hãy phân tích một bữa ăn và lưu lại tại trang **Phân tích ảnh**. "
-            "Lịch sử chỉ được lưu trong phiên trình duyệt hiện tại."
+            "Chưa có bữa ăn nào. Phân tích ảnh rồi chọn Lưu bữa ăn để bắt đầu."
         )
         _render_demo_history()
         return
@@ -67,16 +54,16 @@ def main():
     today_calories = sum(r["totals"]["calories"] for r in today_meals)
 
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric(" Hôm nay", f"{today_calories:.0f} kcal",
+    col1.metric("Hôm nay", f"{today_calories:.0f} kcal",
                 f"{today_calories - target_cal:+.0f} kcal vs mục tiêu")
-    col2.metric(" Số bữa hôm nay", len(today_meals))
-    col3.metric(" Tổng bữa đã ghi", len(history))
-    col4.metric(" Mục tiêu/ngày", f"{target_cal:.0f} kcal")
+    col2.metric("Bữa hôm nay", len(today_meals))
+    col3.metric("Đã lưu", len(history))
+    col4.metric("Mục tiêu", f"{target_cal:.0f} kcal")
 
     st.markdown("---")
 
     # ── 7-Day Chart ────────────────────────────────────────────────────────
-    st.markdown("### Calo 7 Ngày Gần Nhất")
+    st.markdown("### Calo 7 ngày")
 
     dates_7 = [(datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(6, -1, -1)]
     calories_7 = []
@@ -91,7 +78,7 @@ def main():
     st.markdown("---")
 
     # ── Recent Meals Table ──────────────────────────────────────────────────
-    st.markdown("### Danh sách Bữa ăn Gần đây")
+    st.markdown("### Bữa ăn")
 
     tab_all, tab_today = st.tabs(["Tất cả", "Hôm nay"])
 
@@ -102,12 +89,12 @@ def main():
         if today_meals:
             _render_history_table(today_meals)
         else:
-            st.info("Chưa có bữa ăn nào được ghi hôm nay.")
+            st.info("Chưa có bữa ăn hôm nay.")
 
     st.markdown("---")
 
     # ── Weekly Macro Breakdown ──────────────────────────────────────────────
-    st.markdown("### Phân tích Macro Tuần Này")
+    st.markdown("### Macro tuần này")
     week_meals = [r for r in history if r.get("date") in dates_7]
     if week_meals:
         total_carb = sum(r["totals"].get("carbohydrate_g", 0) for r in week_meals)
@@ -120,24 +107,24 @@ def main():
                                           title="Tổng Macro Tuần Này")
             st.plotly_chart(fig_macro, width="stretch", config={"displayModeBar": False})
         with col_text:
-            st.markdown("#### Tổng kết 7 ngày")
+            st.markdown("Tổng kết")
             avg_cal = sum(calories_7) / 7
-            st.metric("Trung bình calo/ngày", f"{avg_cal:.0f} kcal")
+            st.metric("Trung bình/ngày", f"{avg_cal:.0f} kcal")
             days_on_target = sum(1 for c in calories_7 if abs(c - target_cal) <= target_cal * 0.1)
-            st.metric("Ngày đạt mục tiêu (±10%)", f"{days_on_target}/7 ngày")
-            st.metric("Tổng Carb tuần", f"{total_carb:.0f}g")
-            st.metric("Tổng Protein tuần", f"{total_protein:.0f}g")
-            st.metric("Tổng Fat tuần", f"{total_fat:.0f}g")
+            st.metric("Đạt mục tiêu", f"{days_on_target}/7 ngày")
+            st.metric("Carb", f"{total_carb:.0f}g")
+            st.metric("Protein", f"{total_protein:.0f}g")
+            st.metric("Fat", f"{total_fat:.0f}g")
     else:
-        st.info("Chưa có đủ dữ liệu tuần này.")
+        st.info("Chưa có bữa ăn trong 7 ngày qua.")
 
     # ── Clear History ────────────────────────────────────────────────────────
     st.markdown("---")
-    with st.expander(" Xóa lịch sử"):
-        st.warning("Hành động này sẽ xóa lịch sử của phiên hiện tại và không thể hoàn tác.")
-        if st.button(" Xóa tất cả lịch sử", type="secondary"):
+    with st.expander("Xóa lịch sử"):
+        st.warning("Không thể hoàn tác.")
+        if st.button("Xóa tất cả", type="secondary"):
             st.session_state.meal_history = []
-            st.success("Đã xóa lịch sử.")
+            st.success("Đã xóa.")
             st.rerun()
 
 
@@ -149,7 +136,7 @@ def _render_history_table(records: list[dict]):
     rows = []
     for r in records:
         foods_str = ", ".join(
-            f"{f['emoji']} {f['display_name']} ({f['portion_multiplier']}x)"
+            f"{f['display_name']} ({f['portion_multiplier']}x)"
             for f in r.get("foods", [])
         )
         rows.append({
@@ -168,7 +155,7 @@ def _render_history_table(records: list[dict]):
 
 def _render_demo_history():
     """Show demo chart with placeholder data."""
-    st.markdown("### Ví dụ: Biểu đồ Calo 7 Ngày")
+    st.markdown("### Ví dụ: Calo 7 ngày")
     demo_dates = [(datetime.now() - timedelta(days=i)).strftime("%d/%m") for i in range(6, -1, -1)]
     demo_calories = [1850, 2100, 1780, 2050, 1920, 2200, 1750]
     fig = daily_calorie_chart(demo_dates, demo_calories, 2000, "Ví dụ: Calo 7 Ngày (Demo)")

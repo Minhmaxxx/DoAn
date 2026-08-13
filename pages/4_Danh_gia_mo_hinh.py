@@ -11,13 +11,6 @@ ROOT_DIR = Path(__file__).parent.parent
 RESULTS_DIR = ROOT_DIR / "test_model" / "benchmark_results_common_v1"
 BENCHMARK_DIR = ROOT_DIR / "test_model" / "benchmark_common_v1"
 
-st.set_page_config(page_title="Đánh giá Mô hình - NutriVision", layout="wide")
-
-css_path = ROOT_DIR / "assets" / "style.css"
-if css_path.exists():
-    with css_path.open(encoding="utf-8") as file:
-        st.markdown(f"<style>{file.read()}</style>", unsafe_allow_html=True)
-
 
 @st.cache_data
 def load_results() -> tuple[pd.DataFrame, pd.DataFrame]:

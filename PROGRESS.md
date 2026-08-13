@@ -1,7 +1,7 @@
 # NutriVision Progress Record
 
-**Cập nhật:** 2026-08-09<br>
-**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, C5 còn kiểm tra trực quan trên điện thoại thật và live LLM đang chờ API key.
+**Cập nhật:** 2026-08-13<br>
+**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; C5 còn kiểm tra trực quan trên điện thoại thật.
 
 Tài liệu này lưu lại các quyết định, kết quả kiểm tra và bằng chứng có thể dùng khi viết báo cáo hoặc tiếp tục phát triển.
 
@@ -201,7 +201,7 @@ Release suite:
 - Thêm `pytest.ini` và test cho nutrition, hợp đồng 12 lớp, image input, session history, Google/OpenAI adapter mock, lỗi provider/key, năm Streamlit page và responsive CSS.
 - Model smoke test dùng checkpoint Baseline B thật và fixture benchmark có SHA-256 `07fb336590bd3a8e7209e13f90ebfdda04fb0b1e2f2f53f905e8179e56467c7d`.
 - Pipeline test xác nhận fixture trả `banh_mi` với confidence tối thiểu `0.60`, tổng chuẩn `380 kcal`, tạo prompt, sample advice và record history; một fixture negative trả danh sách rỗng.
-- Test live Google LLM được đánh dấu `live` và chỉ chạy khi `RUN_LIVE_LLM_TEST=1`, nên release mặc định không tiêu quota hoặc phụ thuộc mạng.
+- Test live LLM được đánh dấu `live` và chỉ chạy khi `RUN_LIVE_LLM_TEST=1`, nên release mặc định không tiêu quota hoặc phụ thuộc mạng.
 
 Kết quả xác minh:
 
@@ -223,6 +223,130 @@ Giới hạn còn lại:
 - Edge headless chỉ chụp được loading state bất đồng bộ của Streamlit; ảnh đó không được dùng làm bằng chứng responsive.
 - Checkpoint và benchmark image fixture đang gitignored. Release gate pass trên workspace hiện tại, nhưng clean clone cần cơ chế phân phối/xác minh artifact ở Phase E.
 
+### 2026-08-13 - Khóa LLM OpenAI
+
+**Quyết định:** Dùng OpenAI `gpt-4o-mini` làm LLM triển khai. Người dùng đã cấu hình `LLM_PROVIDER=openai`, `OPENAI_MODEL=gpt-4o-mini` và API key trong `.env`; chỉ xác minh provider, model và sự hiện diện của key, không đọc hoặc ghi secret.
+
+Thay đổi liên quan:
+
+- Default không-secret trong `config.py` và `.env.example` là `openai` / `gpt-4o-mini`.
+- UI Hồ sơ ưu tiên OpenAI trong thứ tự provider và trường API key; Google Gemini/Gemma vẫn là phương án thay thế có thể bật qua environment.
+- `README.md` và `PLAN.md` ghi đúng quyết định triển khai để tránh nhầm model mặc định trong demo/báo cáo.
+- Live smoke test dùng fixture tổng hợp với `RUN_LIVE_LLM_TEST=1` pass: OpenAI `gpt-4o-mini` trả lời thành công trong `17.50s`. Test không gửi ảnh hoặc dữ liệu người dùng thật.
+
+### 2026-08-13 - Trợ lý AI tùy chọn và giao diện light health
+
+**Mục tiêu:** người dùng tự quyết định có dùng LLM trong phiên hiện tại hay không, đồng thời đưa giao diện Streamlit về ngôn ngữ thiết kế sáng, card gọn và ưu tiên mobile của `ui_example/`.
+
+Thay đổi sản phẩm:
+
+- Bổ sung `assistant_enabled` trong shared session state, mặc định bật để không thay đổi hành vi cũ.
+- Trang Hồ sơ có công tắc **Bật trợ lý AI cho phiên này**, nêu rõ dữ liệu nào chỉ được gửi khi người dùng chủ động yêu cầu tư vấn.
+- Trang Phân tích ảnh dùng cùng công tắc. Khi tắt, advice cũ bị xóa, nút gọi AI bị vô hiệu hóa và không khởi tạo `NutriLLM`; YOLO, HITL, tính macro và lưu history vẫn hoạt động.
+- Trang chủ phản ánh trạng thái tắt của trợ lý thay vì hiển thị provider/API key là sẵn sàng.
+- Áp dụng palette light health từ `ui_example/`: nền `#f8fafc`, card trắng, primary xanh lá, sidebar/header sáng và khối tư vấn AI tách biệt.
+- `utils/llm.py` đã có `SYSTEM_PROMPT` dùng cho cả OpenAI (`role=system`) và Google (`system_instruction`); không thay đổi nội dung prompt trong đợt này.
+
+Xác minh:
+
+| Lệnh/kiểm tra | Kết quả |
+|---|---|
+| `.venv311\\Scripts\\python.exe -m pytest -q tests/test_llm.py tests/test_pages.py` | `18 passed` trong `3.82s` |
+| `.venv311\\Scripts\\python.exe -m compileall -q app.py pages utils` | Pass |
+| `git diff --check` | Không có lỗi whitespace |
+
+Giới hạn: chưa kiểm tra trực quan bằng browser/device thật cho palette mới; kiểm tra hiện tại xác nhận render qua `AppTest` và contract session state.
+
+### 2026-08-13 - Ổn định launcher demo ngrok
+
+**Mục tiêu:** tránh tunnel vào một Streamlit cũ và tránh giữ cổng local sau khi người dùng đóng demo.
+
+Thay đổi sản phẩm:
+
+- `run_ngrok.py` kiểm tra cổng `STREAMLIT_PORT` trước khi tạo Streamlit. Nếu cổng đang dùng, launcher dừng với hướng dẫn đóng instance cũ hoặc đổi cổng, thay vì thử kết nối nhầm vào server cũ.
+- Trên Windows, launcher dừng toàn bộ process tree mà nó đã tạo bằng `taskkill /T`; điều này xử lý child process do Streamlit tạo.
+- Cleanup dùng `try/finally` lồng nhau để Streamlit luôn được dừng và cổng luôn được giải phóng, kể cả khi ngrok disconnect/kill báo lỗi.
+- `README.md` bổ sung hướng dẫn xử lý cổng đã dùng và lựa chọn `STREAMLIT_PORT=8502`.
+
+Xác minh:
+
+| Lệnh/kiểm tra | Kết quả |
+|---|---|
+| `tests/test_run_ngrok.py` | Kiểm tra từ chối cổng bận và dừng child process để giải phóng cổng |
+| `python -m pytest -q tests/test_run_ngrok.py tests/test_llm.py tests/test_pages.py` | Pass |
+
+### 2026-08-13 - Mobile-first UI refinement
+
+**Mục tiêu:** giảm mật độ thông tin và biểu tượng trang trí, ưu tiên thao tác một tay trên điện thoại.
+
+Thay đổi sản phẩm:
+
+- Đồng bộ `.streamlit/config.toml` sang light theme để không còn xung đột với CSS giao diện sáng.
+- Sidebar mặc định thu gọn; trang chủ dùng luồng ba bước ngắn thay vì phần hướng dẫn dài.
+- Rút gọn tiêu đề, nhãn nút, trạng thái và thông báo tại trang Hồ sơ, Phân tích ảnh, Lịch sử; emoji chỉ giữ ở ngữ cảnh món ăn khi thực sự hỗ trợ quét nhanh.
+- Các action chính và input có chiều cao tối thiểu `44px`; thumb slider lớn hơn cho thao tác cảm ứng.
+- Breakpoint mobile bổ sung khoảng trống đáy, quy tắc lưới 2 cột cho chỉ số và một cột cho màn hình hẹp; bảng/tab vẫn cuộn ngang khi cần.
+
+Xác minh: `.venv311\\Scripts\\python.exe -m pytest -q tests/test_pages.py tests/test_llm.py tests/test_run_ngrok.py` trả `20 passed` trong `4.12s`; `compileall` và `git diff --check` pass.
+
+### 2026-08-13 - Điều hướng mobile và giám sát tunnel
+
+**Mục tiêu:** người dùng điện thoại không cần mở sidebar kiểu desktop và launcher không để Streamlit chạy nền khi ngrok tự đóng tunnel.
+
+Thay đổi sản phẩm:
+
+- Thêm thanh điều hướng đáy bằng chữ: Trang chủ, Phân tích, Lịch sử, Hồ sơ. Mục hiện tại được đánh dấu, không dùng icon.
+- Ở breakpoint mobile (`<=768px`), ẩn hoàn toàn sidebar và nút mở sidebar; desktop vẫn dùng navigation mặc định của Streamlit.
+- `run_ngrok.py` kiểm tra tunnel mỗi giây. Nếu ngrok không còn forwarder, launcher in thông báo và cleanup Streamlit để giải phóng cổng local.
+- `AppTest` chạy từng file page riêng lẻ không có multipage registry; navigation helper bỏ qua riêng tình huống test này, còn app multipage thực tế vẫn render bottom navigation.
+
+Xác minh: `.venv311\\Scripts\\python.exe -m pytest -q tests/test_pages.py tests/test_run_ngrok.py tests/test_llm.py` trả `20 passed` trong `4.00s`; `compileall` và `git diff --check` pass.
+
+### 2026-08-13 - Xác minh mobile bằng browser thật
+
+**Mục tiêu:** loại bỏ các giả định CSS dựa trên DOM Streamlit cũ và xác minh điều hướng bằng Chromium DevTools ở viewport điện thoại `390x844`.
+
+Phát hiện và sửa:
+
+- Route multipage thực tế của Streamlit 1.61 là `/Phan_tich_anh`, `/Lich_su`, `/Ho_so`; các route có tiền tố số gây `Page not found`. Bottom navigation đã chuyển sang route thực tế.
+- Selector thực tế để ẩn nút sidebar là `stExpandSidebarButton`/`stSidebarCollapseButton`; mobile hiện ẩn cả header/sidebar thay vì chỉ thu gọn.
+- Selector container cũ `.main .block-container` không còn khớp Streamlit 1.61. Đã chuyển sang `stMainBlockContainer`, giúp padding mobile thực sự có hiệu lực.
+- Các horizontal block được bật `flex-wrap`; viewport `390px` xác nhận Hồ sơ dùng cột chính `358px` và các chỉ số con khoảng `157px`.
+- Bottom navigation dùng HTML route trực tiếp thay vì `st.page_link`, tránh phụ thuộc multipage registry và DOM widget nội bộ.
+- Cleanup ngrok bắt `PyngrokNgrokError` khi local ngrok API đã đóng trước; `Ctrl+C` không còn in traceback `ConnectionRefusedError`.
+
+Bằng chứng browser: viewport `390x844` xác nhận sidebar `display:none`, bottom nav `position:fixed`, cạnh đáy tại `844px`, active state và route đúng trên Trang chủ, Phân tích và Hồ sơ.
+
+### 2026-08-13 - Thay legacy multipage bằng router ẩn
+
+**Mục tiêu:** loại bỏ triệt để sidebar tự sinh với tên file thô và tránh full-page reload khi chuyển mục.
+
+Thay đổi kiến trúc:
+
+- `app.py` là router duy nhất qua `st.navigation(position="hidden")`; Streamlit không còn dùng menu tự sinh từ thư mục `pages/`.
+- Các `st.Page` có tên và route sạch: Trang chủ `/`, Phân tích `/phan-tich`, Lịch sử `/lich-su`, Hồ sơ `/ho-so`. Đánh giá mô hình vẫn truy cập được qua route ẩn `/danh-gia` nhưng không chiếm chỗ ở navigation người dùng.
+- Thanh điều hướng dùng `st.page_link` với các `Page` đã đăng ký, không còn HTML `<a>` tải lại document.
+- `set_page_config`, CSS và shared state chỉ được khởi tạo ở entrypoint; page con chỉ render nội dung, giảm code lặp và tránh cấu hình khác nhau giữa các trang.
+
+Bằng chứng browser ở viewport `390x844`:
+
+- Không còn `stSidebarNav` trong DOM.
+- Navigation chỉ có `Trang chủ`, `Phân tích`, `Lịch sử`, `Hồ sơ`.
+- Click Phân tích đổi route từ `/` sang `/phan-tich`, render đúng tiêu đề và giữ marker JavaScript trong `window` (`sameDocument=true`), xác nhận không full-page reload.
+
+### 2026-08-13 - Tách Landing và không gian người dùng
+
+**Mục tiêu:** không coi Landing công khai là trang chủ của người dùng và không ép navigation riêng cho mobile.
+
+Thay đổi sản phẩm:
+
+- Landing chỉ giới thiệu giá trị sản phẩm, có hai CTA rõ ràng: thiết lập hồ sơ hoặc mở không gian cá nhân.
+- Thêm `Hôm nay` làm user home: hiển thị calo đã ăn/còn lại/số bữa trong phiên và đưa CTA theo trạng thái thực tế: hoàn tất hồ sơ, phân tích bữa đầu tiên, hoặc thêm bữa ăn tiếp theo.
+- App shell dùng duy nhất một navigation Streamlit đã đăng ký cho desktop và mobile. Desktop hiển thị brand `NutriVision` cùng các mục; mobile ẩn brand để giữ bốn mục thao tác đủ rộng ở đáy. Không còn hai navigation khác nhau hay HTML route tự quản.
+- Nêu rõ ranh giới dữ liệu hiện tại và hướng mở rộng khóa cá nhân để khôi phục hồ sơ/lịch sử đa thiết bị; không giả lập đăng nhập khi chưa có backend/persistence.
+
+Xác minh browser: mobile hiển thị Landing + CTA và navigation `Hôm nay`, `Phân tích`, `Lịch sử`, `Hồ sơ`; desktop hiển thị thêm brand. Cả hai không có `stSidebarNav`.
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
 ### Phase C5 - Kiểm tra thủ công còn lại
@@ -230,10 +354,10 @@ Giới hạn còn lại:
 - Khi có `NGROK_AUTHTOKEN`, mở HTTPS tunnel và kiểm tra navigation, upload/camera, bảng, tư vấn dài, biểu đồ và thao tác cảm ứng trên điện thoại thật.
 - Chụp bằng chứng desktop/mobile và ghi input, expected, actual vào tài liệu này.
 
-### Live Google LLM
+### Live OpenAI LLM
 
-- Khi có `GEMINI_API_KEY`, chạy `RUN_LIVE_LLM_TEST=1` với test marker `live`.
-- Dùng cùng prompt tổng hợp để so sánh nhanh model Gemini và Gemma được AI Studio cung cấp; ghi model ID, latency, format và lỗi nếu có rồi khóa `GOOGLE_MODEL`.
+- Kiểm tra một ảnh/meal đại diện qua UI với `LLM_PROVIDER=openai` và `OPENAI_MODEL=gpt-4o-mini`; ghi latency, format và lỗi nếu có.
+- Google Gemini/Gemma chỉ là phương án thay thế, không thuộc demo chính trừ khi có thay đổi quyết định.
 
 ### Phase E - Báo cáo và demo
 
