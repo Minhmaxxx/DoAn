@@ -1,7 +1,7 @@
 # NutriVision Progress Record
 
-**Cập nhật:** 2026-08-13<br>
-**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; C5 còn kiểm tra trực quan trên điện thoại thật.
+**Cập nhật:** 2026-08-18<br>
+**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật.
 
 Tài liệu này lưu lại các quyết định, kết quả kiểm tra và bằng chứng có thể dùng khi viết báo cáo hoặc tiếp tục phát triển.
 
@@ -346,6 +346,85 @@ Thay đổi sản phẩm:
 - Nêu rõ ranh giới dữ liệu hiện tại và hướng mở rộng khóa cá nhân để khôi phục hồ sơ/lịch sử đa thiết bị; không giả lập đăng nhập khi chưa có backend/persistence.
 
 Xác minh browser: mobile hiển thị Landing + CTA và navigation `Hôm nay`, `Phân tích`, `Lịch sử`, `Hồ sơ`; desktop hiển thị thêm brand. Cả hai không có `stSidebarNav`.
+
+### 2026-08-18 - Hardening bản deploy và dọn workspace an toàn
+
+**Mục tiêu:** ổn định bản demo Streamlit Cloud trước khi tiếp tục chỉnh giao diện; giảm rủi ro RAM khi chụp ảnh, làm đúng ngày giờ Việt Nam, buộc xác nhận hồ sơ/detection, tránh gọi LLM hoặc lưu history không kiểm soát, và tự động hóa release gate.
+
+Quyết định phạm vi:
+
+- Chưa tích hợp Supabase Auth; hồ sơ và history tiếp tục ở session cho tới phase lưu trữ riêng.
+- Chưa thêm quota/hard spending trong app vì bản demo hiện giới hạn người xem; chủ API key vẫn cần đặt giới hạn chi phí tại OpenAI nếu mở quyền truy cập rộng hơn.
+- Giữ tuổi nhập từ 10 đến 100 theo yêu cầu hỗ trợ học sinh; không chặn người dưới 18 tuổi ở vòng này.
+- Bỏ mục tiêu `Giảm cân nhanh`; session cũ có giá trị này được chuyển về `Giảm cân`.
+- Giữ nguyên toàn bộ `KetQuaTrain/`, dataset, notebook, báo cáo và bằng chứng benchmark.
+
+Thay đổi runtime:
+
+- Tách giới hạn ảnh nguồn và ảnh làm việc. Ảnh nguồn trên 25 triệu pixel hoặc cạnh trên 6000 px bị từ chối trước khi decode đầy đủ; ảnh hợp lệ được resize xuống tối đa 4 triệu pixel và 2048 px mỗi cạnh trước khi hash/inference.
+- Chụp nhiều ảnh tuần tự không cộng dồn ảnh trong history vì history chỉ lưu số liệu; session chỉ giữ ảnh phân tích hiện tại. Việc giảm ảnh làm việc giới hạn mỗi RGB buffer khoảng 12 MB thay vì tối đa khoảng 75 MB như cấu hình 25 MP cũ.
+- Bắt `DecompressionBombWarning` như lỗi đầu vào để tránh ảnh nén bất thường gây áp lực bộ nhớ.
+- Thêm múi giờ `Asia/Ho_Chi_Minh`; timestamp history có offset `+07:00`, trang Hôm nay và thống kê 7 ngày cùng dùng giờ Việt Nam.
+- Thêm `profile_completed`; trang Phân tích yêu cầu người dùng đã bấm lưu hồ sơ, không dùng thầm dữ liệu mặc định để cá nhân hóa.
+- Form hồ sơ chỉ ghi session khi submit, không còn thay đổi profile đã lưu trong các rerun chưa xác nhận.
+- Mỗi detection có checkbox loại khỏi bữa ăn và selectbox sửa về một trong 12 lớp. Tổng dinh dưỡng/LLM chỉ dùng món đã xác nhận.
+- OpenAI client dùng timeout 45 giây và tối đa một retry.
+- Mỗi phiên phân tích giữ tập meal signature đã lưu; click lặp cùng một cấu hình không append history lần nữa.
+- Thêm `.github/workflows/tests.yml`: Python 3.11, dependency cache và `python -m pytest -q` trên push/PR `main`.
+
+Dọn workspace và Git:
+
+- Xóa `CLEANUP_CANDIDATES.md` đã hết vai trò sau khi chốt cleanup.
+- Xóa `models/weights/.gitkeep` và `data/sample_images/.gitkeep`; hai file rỗng không còn cần cho runtime/training.
+- Không có file nào dưới `datasets/` hoặc `KetQuaTrain/` được Git track. `.gitignore` tiếp tục chặn toàn bộ `datasets/`, `*.zip` và `KetQuaTrain/`.
+- Cache Python/pytest được dọn sau release test; `.venv311` được giữ vì vẫn là môi trường local đã xác minh.
+
+Xác minh:
+
+- `python -m pytest -q tests/test_images.py` trả `10 passed`.
+- `python -m pytest -q tests/test_history.py tests/test_pages.py` trả `20 passed`.
+- `python -m pytest -q tests/test_history.py tests/test_llm.py tests/test_pages.py` trả `31 passed`.
+- Release gate cuối `python -m pytest -q` trả `76 passed, 1 skipped`; test skip duy nhất vẫn là live LLM.
+- `git diff --check` pass; dataset và `KetQuaTrain/` không xuất hiện trong `git ls-files`.
+
+### 2026-08-18 - Xây lại UI responsive và hỗ trợ cài lên màn hình chính
+
+**Mục tiêu:** thay toàn bộ giao diện cũ bằng một hệ thống thiết kế riêng cho desktop/mobile, giữ nguyên logic dinh dưỡng đã harden và cho phép thêm NutriVision lên màn hình chính như một PWA.
+
+Thay đổi sản phẩm:
+
+- Pin `streamlit==1.61.1` để cố định DOM/API đã dùng trong giao diện và test.
+- Viết lại `assets/style.css` theo visual language giấy ấm, xanh đậm, xanh chanh và cam; desktop dùng navigation rail cố định, mobile dùng header gọn cùng bottom navigation có safe-area.
+- Tạo `utils/ui.py` cho page header, section header, stat grid và empty state dùng chung; xây lại Landing, Hôm nay, Phân tích, Lịch sử, Hồ sơ và dashboard benchmark trên cùng design system.
+- `utils/navigation.py` dùng một registry `st.Page` cho cả desktop/mobile; active state chỉ do CSS thể hiện, không vô hiệu hóa link hiện tại.
+- Thêm `utils/pwa.py`, manifest, service worker và icon 192/512/Apple Touch dưới `static/`; bật `server.enableStaticServing` và cung cấp nút cài cùng hướng dẫn fallback Android/iOS.
+- Chuyển metadata tin cậy sang `st.html(..., unsafe_allow_javascript=True)` và install control sang `st.iframe`; không còn dùng `st.components.v1.html` đã hết vòng đời trong Streamlit 1.61.
+- CSS được nạp bằng `st.html(Path)` để không tạo spacer zero-height trước mobile header. Selector navigation được khớp với DOM thực tế của Streamlit, khóa bốn wrapper ở một hàng và không tạo horizontal overflow.
+- Tablet và laptop hẹp chuyển sang layout một cột ở `1200px`; desktop rail nén bốn link thành vùng bấm độc lập và ẩn note phụ khi chiều cao dưới `681px`, tránh che navigation.
+- Bổ sung `:focus-visible`, `aria-current`, contrast chữ nhỏ đạt chuẩn, nhãn riêng cho từng detection và thông báo sau khi lưu hồ sơ; iframe cài đặt tiếp tục nằm trong thứ tự tab bàn phím.
+- Service worker chỉ xóa cache có prefix của NutriVision, retry sau lỗi đăng ký và khai báo scope tĩnh tường minh; nút cài nhận biết standalone/appinstalled và hướng dẫn cả iPadOS desktop user agent.
+- Đồng bộ palette Plotly với giao diện mới; giữ nội dung tiếng Việt và toàn bộ contract nhận diện/dinh dưỡng hiện có.
+
+Bằng chứng browser:
+
+- Edge DevTools kiểm tra các route `/`, `/hom-nay`, `/phan-tich`, `/lich-su`, `/ho-so` ở `1440x1000` và device emulation thật `390x844`.
+- Cả năm route có `stException=0`, `documentElement.scrollWidth` bằng đúng viewport và mobile navigation luôn là `row nowrap` với bốn mục cùng hàng.
+- Kiểm tra bổ sung `1366x768`, `1366x600`, `1201x700`, `1200x700` và `1024x600`: link rail không chồng/che nhau, note ẩn ở màn hình thấp, metric không bị cắt tại ranh giới desktop và tablet dùng form một cột.
+- Dùng mouse event thật để lưu hồ sơ, sau đó chuyển trang bằng `st.page_link` trong cùng document; trang Phân tích mở đúng tab tải ảnh/camera và không còn cảnh báo thiếu hồ sơ.
+- Manifest, service worker và hai icon đều trả HTTP `200`; worker ở trạng thái `activated`. Chrome DevTools trả `installabilityErrors=[]` và không có manifest error.
+- Service worker hiện chỉ cache tài nguyên PWA tĩnh; không tuyên bố inference hoặc dữ liệu phiên hoạt động offline.
+
+Xác minh tự động:
+
+| Lệnh/kiểm tra | Kết quả |
+|---|---|
+| `.venv311\\Scripts\\python.exe -m pytest -q` | `77 passed, 1 skipped` trong `9.31s`; skip duy nhất là live LLM |
+| `.venv311\\Scripts\\python.exe test_imports.py` | Pass config, nutrition, fallback, chart và checksum Baseline B |
+| `.venv311\\Scripts\\python.exe -m pip check` | `No broken requirements found` |
+| `.venv311\\Scripts\\python.exe -m compileall -q app.py pages utils tests` | Pass |
+| `git diff --check` | Pass; chỉ có cảnh báo line-ending LF/CRLF của Git trên Windows |
+
+Giới hạn còn lại: cần mở bản HTTPS production trên điện thoại thật để xác nhận camera permission, bàn phím, touch target, safe-area iPhone/Android và thao tác cài từ Safari/Chrome thực tế.
 
 ## 8. Công việc tiếp theo khi tiếp tục
 

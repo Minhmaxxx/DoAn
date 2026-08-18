@@ -23,7 +23,10 @@ def initialize_session_state() -> None:
     profile = st.session_state.setdefault("user_profile", deepcopy(DEFAULT_USER_PROFILE))
     for key, value in DEFAULT_USER_PROFILE.items():
         profile.setdefault(key, value)
+    if profile.get("goal") == "Giảm cân nhanh":
+        profile["goal"] = "Giảm cân"
 
+    st.session_state.setdefault("profile_completed", bool(profile.get("name", "").strip()))
     st.session_state.setdefault("meal_history", [])
     st.session_state.setdefault("current_meal", None)
     # The assistant is optional; credentials may stay configured while it is off.

@@ -4,7 +4,7 @@
 > *Personalized Nutrition Advisory System combining Computer Vision (YOLOv8) and Large Language Models*
 
 [![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)](https://python.org)
-[![Streamlit](https://img.shields.io/badge/Streamlit-1.35+-red?logo=streamlit)](https://streamlit.io)
+[![Streamlit](https://img.shields.io/badge/Streamlit-1.61.1-red?logo=streamlit)](https://streamlit.io)
 [![YOLOv8](https://img.shields.io/badge/YOLOv8-Ultralytics-purple)](https://ultralytics.com)
 [![Google GenAI](https://img.shields.io/badge/LLM-Google%20GenAI-orange)](https://ai.google.dev)
 
@@ -40,7 +40,7 @@ AI không thể ước lượng chính xác thể tích món ăn từ ảnh 2D. 
 
 | Component | Technology |
 |---|---|
-| Web Framework | Streamlit 1.35+ |
+| Web Framework | Streamlit 1.61.1 |
 | Object Detection | YOLOv8n (Ultralytics) |
 | Transfer Learning | Kaggle GPU |
 | Dataset Labeling | Roboflow |
@@ -123,6 +123,17 @@ Trên Windows, có thể chạy `run.bat`; launcher này ưu tiên môi trườn
 bật UTF-8. Luồng khuyến nghị trong ứng dụng là: **Hồ sơ → Phân tích ảnh → bật trợ
 lý nếu cần → Lịch sử**.
 
+### Cài lên màn hình chính
+
+Landing và trang **Hồ sơ** có nút **Cài NutriVision**. Trên Chrome/Edge, dùng
+prompt cài đặt hoặc mục **Cài đặt ứng dụng / Thêm vào màn hình chính** trong menu.
+Trên iPhone/iPad, mở bằng Safari, chọn **Chia sẻ → Thêm vào Màn hình chính**.
+
+PWA cần HTTPS ngoài môi trường `localhost`; có thể dùng bản production tại
+[nutrivisionnn.streamlit.app](https://nutrivisionnn.streamlit.app/). Việc cài PWA
+không thay đổi phạm vi lưu trữ hiện tại: hồ sơ và lịch sử vẫn mất khi phiên
+Streamlit kết thúc, và nhận diện ảnh không được quảng bá là hoạt động offline.
+
 ### Release test
 
 ```bash
@@ -131,7 +142,7 @@ python -m pytest -q
 ```
 
 Lệnh trên chạy test logic, hợp đồng 12 lớp, ảnh đầu vào, history, LLM mock,
-năm Streamlit page và smoke test Baseline B thật. Live API chỉ chạy khi đặt
+landing cùng năm Streamlit page và smoke test Baseline B thật. Live API chỉ chạy khi đặt
 `RUN_LIVE_LLM_TEST=1` và đã có API key cho provider đang chọn.
 
 ### Deploy và tự động cập nhật
@@ -140,6 +151,9 @@ Hướng dẫn đầy đủ nằm tại [DEPLOYMENT.md](DEPLOYMENT.md). Cấu h�
 Streamlit Community Cloud là repository `Minhmaxxx/DoAn`, branch `main`, file
 `app.py` và Python 3.11. Sau lần deploy đầu tiên, mỗi commit được push lên `main`
 sẽ được Streamlit tự động cập nhật.
+
+Production hiện tại: [nutrivisionnn.streamlit.app](https://nutrivisionnn.streamlit.app/).
+GitHub Actions chạy release test trên Python 3.11 cho mỗi push và pull request.
 
 Checkpoint production `models/weights/best_baseline_B.pt` và hai ảnh fixture nhỏ
 của release gate phải có trong commit. Dataset, báo cáo, `.env`, secret và các
@@ -193,6 +207,7 @@ nutrivision/
 ├── storage_schema.sql        # Schema Supabase và RLS
 ├── PLAN.md                   # Kế hoạch 9 tuần
 ├── pages/
+│   ├── 0_Hom_nay.py          # Dashboard của phiên hiện tại
 │   ├── 1_Phan_tich_anh.py   # Food detection + HITL
 │   ├── 2_Lich_su.py         # Meal history
 │   ├── 3_Ho_so.py           # User profile
@@ -205,7 +220,11 @@ nutrivision/
 │   ├── llm.py                # Google GenAI/OpenAI integration
 │   ├── images.py             # Decode, EXIF and image limits
 │   ├── history.py            # Session history records
+│   ├── navigation.py         # Desktop rail + mobile bottom navigation
+│   ├── pwa.py                # Manifest metadata + install control
+│   ├── ui.py                 # Shared authored UI primitives
 │   └── visualization.py      # Plotly charts
+├── static/                   # PWA manifest, service worker và icons
 ├── tests/                    # Pytest release suite
 ├── data/
 │   └── nutrition_db.json     # 12 lớp món ăn, khẩu phần tham khảo
@@ -214,7 +233,7 @@ nutrivision/
 │   ├── data_collection.py    # Image scraper
 │   └── dataset.yaml          # YOLOv8 dataset config
 └── assets/
-    └── style.css             # Light health UI shared CSS
+    └── style.css             # Responsive design system dùng chung
 ```
 
 ---

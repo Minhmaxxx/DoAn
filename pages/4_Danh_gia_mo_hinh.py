@@ -6,6 +6,8 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from utils.ui import render_page_header, render_section_header
+
 
 ROOT_DIR = Path(__file__).parent.parent
 RESULTS_DIR = ROOT_DIR / "test_model" / "benchmark_results_common_v1"
@@ -49,10 +51,11 @@ def metric_chart(overall: pd.DataFrame) -> go.Figure:
 
 
 def main() -> None:
-    st.markdown('<h1 class="page-title">Đánh giá Mô hình</h1>', unsafe_allow_html=True)
-    st.markdown(
-        "So sánh công bằng ba checkpoint trên benchmark chung đã loại rò rỉ dữ liệu. "
-        "Các ảnh challenge chỉ dùng minh họa, không tham gia tính metric."
+    render_page_header(
+        "BENCHMARK ĐÓNG BĂNG",
+        "Đánh giá mô hình.",
+        "So sánh công bằng ba checkpoint trên benchmark chung đã loại rò rỉ dữ liệu.",
+        meta="404 ẢNH · 447 BOX",
     )
 
     if not (RESULTS_DIR / "overall_metrics.csv").exists():
@@ -60,9 +63,8 @@ def main() -> None:
         return
 
     overall, per_class = load_results()
-    st.markdown("---")
-
-    c1, c2, c3, c4 = st.columns(4)
+    with st.container(key="benchmark-metrics"):
+        c1, c2, c3, c4 = st.columns(4)
     c1.metric("Benchmark sạch", "404 ảnh", "447 boxes")
     c2.metric("Ảnh bị loại", "28", "rò rỉ / trùng lặp")
     c3.metric("mAP50 cao nhất", f"{overall['mAP50'].max():.3f}", "Baseline B")
@@ -94,7 +96,7 @@ def main() -> None:
     display["ms/ảnh CPU"] = display["ms/ảnh CPU"].map(lambda value: f"{value:.2f}")
     st.dataframe(display, width="stretch", hide_index=True)
 
-    st.markdown("### Phân tích theo lớp")
+    render_section_header("01", "Phân tích theo lớp", "Đối chiếu precision, recall và mAP của từng món.")
     class_name = st.selectbox("Chọn lớp món ăn", per_class["class_name"].drop_duplicates().tolist())
     class_rows = per_class[per_class["class_name"] == class_name].copy()
     class_rows = class_rows[["model", "precision", "recall", "mAP50", "mAP50_95"]]

@@ -54,6 +54,30 @@ def test_dimension_limit_applies_even_when_pixel_count_is_small():
     assert result.size == (50, 10)
 
 
+def test_source_pixel_limit_rejects_before_resize():
+    source = encoded_image(Image.new("RGB", (100, 100), "green"), "PNG")
+    with pytest.raises(ImageInputError, match="độ phân giải quá lớn"):
+        load_uploaded_image(
+            source,
+            max_pixels=2500,
+            max_dimension=500,
+            max_source_pixels=9000,
+            max_source_dimension=500,
+        )
+
+
+def test_source_dimension_limit_rejects_long_images():
+    source = encoded_image(Image.new("RGB", (100, 20), "white"), "PNG")
+    with pytest.raises(ImageInputError, match="độ phân giải quá lớn"):
+        load_uploaded_image(
+            source,
+            max_pixels=1_000_000,
+            max_dimension=500,
+            max_source_pixels=1_000_000,
+            max_source_dimension=50,
+        )
+
+
 def test_invalid_limits_are_rejected():
     source = encoded_image(Image.new("RGB", (10, 10), "white"), "PNG")
     with pytest.raises(ValueError, match="lớn hơn 0"):

@@ -240,10 +240,6 @@ def calculate_goal_calories(tdee: float, goal: str) -> dict:
             "change": -500,
             "description": "Thâm hụt 500 kcal/ngày → giảm ~0.5kg/tuần",
         },
-        "Giảm cân nhanh": {
-            "change": -750,
-            "description": "Thâm hụt 750 kcal/ngày → giảm ~0.75kg/tuần",
-        },
         "Giữ cân": {
             "change": 0,
             "description": "Duy trì cân nặng hiện tại",
@@ -274,7 +270,6 @@ def get_macro_targets(target_calories: float, goal: str) -> dict:
     """
     ratios = {
         "Giảm cân":       {"carb": 0.40, "protein": 0.35, "fat": 0.25},
-        "Giảm cân nhanh": {"carb": 0.35, "protein": 0.40, "fat": 0.25},
         "Giữ cân":        {"carb": 0.50, "protein": 0.25, "fat": 0.25},
         "Tăng cơ":        {"carb": 0.45, "protein": 0.35, "fat": 0.20},
         "Tăng cân":       {"carb": 0.50, "protein": 0.25, "fat": 0.25},

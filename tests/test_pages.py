@@ -1,5 +1,6 @@
 """Streamlit render smoke tests and responsive-style contracts."""
 
+import json
 from pathlib import Path
 
 import pytest
@@ -24,22 +25,55 @@ def test_streamlit_page_renders_without_exception(app_file):
     assert not app.exception, [str(exception) for exception in app.exception]
 
 
-def test_responsive_css_keeps_mobile_navigation_and_overflow_guards():
+def test_responsive_css_has_distinct_desktop_and_mobile_shells():
     css = (ROOT_DIR / "assets" / "style.css").read_text(encoding="utf-8")
-    assert "@media (max-width: 768px)" in css
-    assert "@media (max-width: 480px)" in css
+    assert "@media (max-width: 1200px)" in css
+    assert "@media (max-width: 520px)" in css
     assert 'header[data-testid="stHeader"]' in css
     assert '[data-testid="stDataFrame"]' in css
-    assert '[data-baseweb="tab-list"]' in css
+    assert '[data-testid="stTabs"] [role="tablist"]' in css
     assert '[data-testid="stRadio"] [role="radiogroup"]' in css
-    assert "min-height: 44px" in css
-    assert "padding-bottom: 6rem" in css
+    assert "min-height: 48px" in css
+    assert "env(safe-area-inset-bottom)" in css
     navigation = (ROOT_DIR / "utils" / "navigation.py").read_text(encoding="utf-8")
     assert "render_app_shell" in navigation
     assert "st.page_link" in navigation
     assert ".st-key-app-shell" in css
+    assert ".st-key-app-mobile-header" in css
+    assert '.st-key-app-navigation[data-testid="stHorizontalBlock"]' in css
+    assert "flex-wrap: nowrap !important" in css
+    assert ":focus-visible" in css
+    assert 'class*="st-key-nav-active-"' in css
     assert '[data-testid="stExpandSidebarButton"]' in css
     assert '[data-testid="stSidebar"]' in css
+
+
+def test_pwa_manifest_icons_and_static_serving_contract():
+    manifest = json.loads(
+        (ROOT_DIR / "static" / "manifest.webmanifest").read_text(encoding="utf-8")
+    )
+    assert manifest["display"] == "standalone"
+    assert manifest["start_url"] == "/"
+    assert {icon["sizes"] for icon in manifest["icons"]} == {"192x192", "512x512"}
+    assert (ROOT_DIR / "static" / "icons" / "icon-192.png").is_file()
+    assert (ROOT_DIR / "static" / "icons" / "icon-512.png").is_file()
+    assert (ROOT_DIR / "static" / "icons" / "apple-touch-icon.png").is_file()
+    assert "enableStaticServing = true" in (
+        ROOT_DIR / ".streamlit" / "config.toml"
+    ).read_text(encoding="utf-8")
+    pwa_source = (ROOT_DIR / "utils" / "pwa.py").read_text(encoding="utf-8")
+    assert "beforeinstallprompt" in pwa_source
+    assert "apple-mobile-web-app-capable" in pwa_source
+    assert "components.html" not in pwa_source
+    assert "st.html(" in pwa_source
+    assert "st.iframe(" in pwa_source
+    assert "aria-current" in pwa_source
+    assert "tab_index=-1" not in pwa_source
+    assert 'scope: "/app/static/"' in pwa_source
+    worker_source = (ROOT_DIR / "static" / "service-worker.js").read_text(
+        encoding="utf-8"
+    )
+    assert 'startsWith("nutrivision-shell-")' in worker_source
 
 
 def test_history_clear_only_changes_active_session():
@@ -111,4 +145,20 @@ def test_assistant_can_be_disabled_for_the_active_session():
     )
     assistant_toggle.set_value(False).run()
     assert app.session_state["assistant_enabled"] is False
+    assert not app.exception
+
+
+def test_profile_is_completed_only_after_form_submission():
+    app = AppTest.from_file(
+        str(ROOT_DIR / "pages" / "3_Ho_so.py"), default_timeout=45
+    )
+    app.run()
+    assert app.session_state["profile_completed"] is False
+
+    save_button = next(
+        button for button in app.button if button.label == "Lưu thay đổi"
+    )
+    save_button.click().run()
+    assert app.session_state["profile_completed"] is True
+    assert any("Đã lưu hồ sơ" in success.value for success in app.success)
     assert not app.exception

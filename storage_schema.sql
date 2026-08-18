@@ -17,7 +17,6 @@ create table if not exists public.profiles (
     )),
     goal text not null check (goal in (
         'Giảm cân',
-        'Giảm cân nhanh',
         'Giữ cân',
         'Tăng cơ',
         'Tăng cân'

@@ -14,7 +14,7 @@ NutriVision cần hoàn thiện một luồng có thể kiểm chứng và tri�
 6. Lưu và trực quan hóa lịch sử bữa ăn.
 7. So sánh Baseline A và Baseline B trên cùng một benchmark trước khi chọn model triển khai.
 
-Trạng thái hiện tại: A0/A/B đã được đánh giá trên benchmark sạch 404 ảnh; Baseline B đã được chọn bằng tie-break, hợp đồng 12 lớp và giao diện model thật đã được tích hợp. Release gate tự động đã pass; kiểm tra điện thoại thật, live LLM và deployment công khai vẫn cần hoàn tất.
+Trạng thái hiện tại: A0/A/B đã được đánh giá trên benchmark sạch 404 ảnh; Baseline B đã được chọn bằng tie-break, hợp đồng 12 lớp và giao diện model thật đã được tích hợp. Release gate, live OpenAI, deployment công khai và kiểm tra responsive/PWA bằng Edge DevTools đã pass; camera, touch và cài đặt trên điện thoại thật vẫn cần xác nhận.
 
 ## 2. Kiến trúc mục tiêu
 
@@ -185,7 +185,7 @@ config.FOOD_CLASSES == canonical names của dataset tương lai
 | `training/train.py` không tái lập checkpoint Kaggle | Không thể dùng script hiện tại làm bằng chứng phương pháp train |
 | Live LLM và camera điện thoại cần secret/thiết bị ngoài test suite | Phải kiểm tra thủ công trước demo công khai |
 | Meal history chỉ tồn tại trong Streamlit session | Đảm bảo privacy nhưng không lưu được qua phiên mới |
-| Model, dataset và báo cáo đang ignored/untracked | Có nguy cơ mất artifact nếu chỉ dựa vào Git |
+| Dataset train và báo cáo đang ignored/untracked | Cần backup ngoài Git; checkpoint production đã được track |
 
 ## 6. Lộ trình theo phase
 
@@ -500,6 +500,7 @@ Mỗi test case phải được ghi vào `PROGRESS.md` với input, expected res
 - [x] Kiểm thử no-detection, unknown label, nhiều box cùng lớp, món trùng và lịch sử rỗng.
 - [x] Kiểm thử lưu/đọc/xóa history theo session và xóa API key tạm khỏi session.
 - [x] Khóa release gate là `python -m pytest -q`; kết quả ngày 2026-08-09 là `66 passed, 1 skipped`.
+- [x] Thêm GitHub Actions chạy release gate trên Python 3.11 cho push/PR vào `main`.
 
 Test bị skip duy nhất là live LLM, chỉ chạy khi đặt `RUN_LIVE_LLM_TEST=1`; release gate mặc định không phụ thuộc mạng hoặc secret.
 

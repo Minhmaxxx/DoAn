@@ -1,0 +1,27 @@
+{
+  "name": "NutriVision - Nhật ký dinh dưỡng",
+  "short_name": "NutriVision",
+  "description": "Nhận diện món Việt, xác nhận khẩu phần và theo dõi dinh dưỡng.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f3f0e7",
+  "theme_color": "#19352a",
+  "lang": "vi",
+  "categories": ["health", "food", "lifestyle"],
+  "icons": [
+    {
+      "src": "/app/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/app/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

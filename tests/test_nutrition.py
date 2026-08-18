@@ -56,7 +56,6 @@ def test_tdee_activity_lookup_contract(activity, factor):
     ("goal", "change"),
     [
         ("Giảm cân", -500),
-        ("Giảm cân nhanh", -750),
         ("Giữ cân", 0),
         ("Tăng cơ", 300),
         ("Tăng cân", 500),

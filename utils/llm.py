@@ -163,7 +163,11 @@ class NutriLLM:
         """Lazy-init OpenAI client."""
         if self._openai_client is None:
             from openai import OpenAI
-            self._openai_client = OpenAI(api_key=self.openai_api_key)
+            self._openai_client = OpenAI(
+                api_key=self.openai_api_key,
+                timeout=config.LLM_TIMEOUT_SECONDS,
+                max_retries=config.LLM_MAX_RETRIES,
+            )
         return self._openai_client
 
     def close(self) -> None:

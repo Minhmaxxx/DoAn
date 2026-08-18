@@ -13,6 +13,7 @@ Features:
 import json
 import sys
 import hashlib
+from html import escape
 from pathlib import Path
 
 import streamlit as st
@@ -34,10 +35,11 @@ from utils.nutrition import (
     get_macro_targets,
 )
 from utils.llm import NutriLLM
-from utils.history import build_meal_record
+from utils.history import append_meal_once
 from utils.images import ImageInputError, load_uploaded_image
 from utils.visualization import macro_donut_chart, calorie_gauge, macro_progress_bars
 from utils.state import initialize_session_state
+from utils.ui import render_page_header, render_section_header
 
 # ─── Initialize session state ─────────────────────────────────────────────────
 for key, default in [
@@ -49,6 +51,7 @@ for key, default in [
     ("analysis_done", False),
     ("analysis_image_hash", None),
     ("meal_signature", None),
+    ("saved_meal_signatures", set()),
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -78,6 +81,8 @@ def _open_image(source) -> Image.Image | None:
             source,
             max_pixels=config.MAX_IMAGE_PIXELS,
             max_dimension=config.MAX_IMAGE_DIMENSION,
+            max_source_pixels=config.MAX_SOURCE_IMAGE_PIXELS,
+            max_source_dimension=config.MAX_SOURCE_IMAGE_DIMENSION,
         )
     except ImageInputError as error:
         st.error(str(error))
@@ -96,18 +101,33 @@ def _reset_analysis(image_hash: str) -> None:
     st.session_state.llm_advice = None
     st.session_state.analysis_done = False
     st.session_state.meal_signature = None
+    st.session_state.saved_meal_signatures = set()
     st.session_state.analysis_image_hash = image_hash
 
 
 # ─── Main Page ────────────────────────────────────────────────────────────────
 def main():
-    st.markdown('<h1 class="page-title">Phân tích bữa ăn</h1>', unsafe_allow_html=True)
-    st.caption("Tải ảnh, xác nhận khẩu phần, rồi lưu kết quả.")
-    st.markdown("---")
+    render_page_header(
+        "CAMERA → YOLO → BẠN XÁC NHẬN",
+        "Phân tích bữa ăn.",
+        "AI chỉ gợi ý. Bạn chọn món đúng, bỏ detection sai và điều chỉnh khẩu phần trước khi tính.",
+        meta="TỐI ĐA 25 MP",
+    )
+
+    if not st.session_state.profile_completed:
+        st.warning("Hãy lưu hồ sơ trước để NutriVision dùng đúng thông tin của bạn.")
+        if st.button("Điền hồ sơ", type="primary", width="stretch"):
+            st.switch_page("pages/3_Ho_so.py")
+        return
 
     # ── Step 1: Image Upload ────────────────────────────────────────────────
-    st.markdown("### 1. Thêm ảnh")
-    upload_tab, camera_tab = st.tabs(["Tải ảnh", "Camera"])
+    render_section_header(
+        "01",
+        "Thêm ảnh bữa ăn",
+        "Dùng ảnh rõ, đủ sáng và ưu tiên góc chụp từ trên xuống.",
+    )
+    with st.container(key="analysis-input"):
+        upload_tab, camera_tab = st.tabs(["Tải ảnh", "Camera"])
 
     uploaded_image = None
     with upload_tab:
@@ -116,7 +136,8 @@ def main():
             type=["jpg", "jpeg", "png", "webp"],
             help=(
                 f"JPG, PNG hoặc WEBP, tối đa {config.MAX_UPLOAD_SIZE_MB} MB. "
-                "Ảnh rõ nét từ trên xuống cho kết quả tốt hơn."
+                "Ảnh rõ nét từ trên xuống cho kết quả tốt hơn; ảnh độ phân giải "
+                "quá cao nên chuyển camera về chế độ chụp thường."
             ),
             key="file_uploader",
         )
@@ -139,7 +160,8 @@ def main():
     _reset_analysis(image_hash)
 
     # Preview
-    col_img, col_info = st.columns([1, 1])
+    with st.container(key="analysis-preview"):
+        col_img, col_info = st.columns([1.2, 0.8], gap="large")
     with col_img:
         st.image(uploaded_image, caption="Ảnh đã chọn", width="stretch")
     with col_info:
@@ -175,24 +197,33 @@ def main():
             st.session_state.analysis_done = True
             st.session_state.llm_advice = None  # Reset old advice
 
-            # Each detection needs its own portion, including duplicate dishes.
+            # Each detection keeps independent confirmation, label, and portion state.
             for slider_key in st.session_state.detection_slider_keys:
                 st.session_state.pop(slider_key, None)
             st.session_state.detection_slider_keys = []
-            for detection_index, _ in enumerate(detections):
+            for detection_index, detection in enumerate(detections):
+                include_key = f"include_detection_{detection_index}"
+                class_key = f"class_detection_{detection_index}"
                 slider_key = f"portion_detection_{detection_index}"
+                st.session_state[include_key] = True
+                st.session_state[class_key] = detection.food_class
                 st.session_state[slider_key] = 1.0
-                st.session_state.detection_slider_keys.append(slider_key)
+                st.session_state.detection_slider_keys.extend(
+                    [include_key, class_key, slider_key]
+                )
 
         st.success(f"Đã tìm thấy {len(detections)} món.")
 
     # ── Step 3: HITL — Show Results + Sliders ──────────────────────────────
     if st.session_state.analysis_done and st.session_state.detections:
-        st.markdown("---")
-        st.markdown("### 2. Xác nhận khẩu phần")
-        st.caption("Ảnh 2D không đo được khối lượng. Điều chỉnh thanh trượt theo phần ăn thực tế.")
+        render_section_header(
+            "02",
+            "Xác nhận món và khẩu phần",
+            "Ảnh 2D không đo được khối lượng; hãy sửa nhãn và điều chỉnh theo phần ăn thực tế.",
+        )
 
-        col_ann, col_hitl = st.columns([1, 1])
+        with st.container(key="analysis-results"):
+            col_ann, col_hitl = st.columns([1, 1], gap="large")
 
         with col_ann:
             if st.session_state.annotated_image:
@@ -210,17 +241,40 @@ def main():
                 with st.container():
                     st.markdown(f"""
                     <div class="food-card">
-                        <strong>{det.display_name}</strong>
+                        <strong>{escape(det.display_name)}</strong>
                         <span class="confidence-badge">{det.confidence:.0%}</span>
                     </div>
                     """, unsafe_allow_html=True)
 
+                    include_key = f"include_detection_{detection_index}"
+                    class_key = f"class_detection_{detection_index}"
                     slider_key = f"portion_detection_{detection_index}"
+                    if include_key not in st.session_state:
+                        st.session_state[include_key] = True
+                    if class_key not in st.session_state:
+                        st.session_state[class_key] = det.food_class
+                    st.checkbox(
+                        f"Tính {det.display_name} vào bữa ăn",
+                        key=include_key,
+                    )
+                    selected_food_class = st.selectbox(
+                        f"Xác nhận món ăn cho {det.display_name}",
+                        config.FOOD_CLASSES,
+                        format_func=lambda food_class: config.FOOD_DISPLAY_NAMES[food_class],
+                        key=class_key,
+                        help="Đổi nhãn nếu mô hình nhận diện chưa đúng.",
+                    )
+
+                    if not st.session_state[include_key]:
+                        st.caption("Món này đã được loại khỏi tổng dinh dưỡng.")
+                        st.markdown("<hr style='margin: 8px 0; opacity: 0.2;'>", unsafe_allow_html=True)
+                        continue
+
                     if slider_key not in st.session_state:
                         st.session_state[slider_key] = 1.0
 
                     ratio = st.slider(
-                        f"Khẩu phần ({det.display_name})",
+                        f"Khẩu phần ({config.FOOD_DISPLAY_NAMES[selected_food_class]})",
                         min_value=config.SLIDER_MIN,
                         max_value=config.SLIDER_MAX,
                         step=config.SLIDER_STEP,
@@ -231,7 +285,7 @@ def main():
                     )
 
                     # Calculate adjusted nutrition
-                    adj = calculate_adjusted_nutrition(det.food_class, ratio)
+                    adj = calculate_adjusted_nutrition(selected_food_class, ratio)
                     if adj:
                         adjusted_items.append(adj)
                         cols = st.columns(4)
@@ -255,28 +309,40 @@ def main():
                 "total_calories": meal_totals["calories"],
             }
             _render_meal_summary(meal_totals, adjusted_items)
+        else:
+            st.session_state.meal_nutrition = None
+            st.session_state.llm_advice = None
+            st.info("Hãy giữ lại ít nhất một món để tính tổng dinh dưỡng.")
 
     # ── Step 4: LLM Advice and history ─────────────────────────────────────
     if st.session_state.meal_nutrition:
-        st.markdown("---")
-        st.markdown("### 3. Hoàn tất")
+        render_section_header(
+            "03",
+            "Lưu hoặc hỏi trợ lý",
+            "Lưu vào nhật ký phiên này; chỉ gửi dữ liệu tới AI khi bạn chủ động yêu cầu.",
+        )
         assistant_enabled = st.toggle(
             "Dùng trợ lý AI",
             key="assistant_enabled",
             help="Tắt để không gửi hồ sơ và bữa ăn hiện tại đến nhà cung cấp LLM.",
         )
 
+        current_signature = st.session_state.meal_signature
+        already_saved = current_signature in st.session_state.saved_meal_signatures
         col_btn, col_save = st.columns([1, 1])
         with col_save:
             save_btn = st.button(
-                "Lưu bữa ăn",
+                "Đã lưu bữa ăn" if already_saved else "Lưu bữa ăn",
                 width="stretch",
                 key="save_btn",
+                disabled=already_saved,
             )
 
         if save_btn and st.session_state.meal_nutrition:
-            _save_to_history(st.session_state.meal_nutrition)
-            st.success("Đã lưu bữa ăn vào lịch sử!")
+            if _save_to_history(st.session_state.meal_nutrition, current_signature):
+                st.success("Đã lưu bữa ăn vào lịch sử!")
+            else:
+                st.info("Bữa ăn này đã được lưu.")
 
         if not assistant_enabled:
             st.session_state.llm_advice = None
@@ -356,15 +422,15 @@ def main():
 
 def _render_meal_summary(meal_totals: dict, adjusted_items: list):
     """Render the meal summary section with charts."""
-    st.markdown("---")
-    st.markdown("### Tổng dinh dưỡng")
+    st.markdown("<p class='panel-kicker summary-kicker'>TỔNG DINH DƯỠNG ĐÃ XÁC NHẬN</p>", unsafe_allow_html=True)
 
     profile = st.session_state.user_profile
     biometrics = compute_biometrics(profile)
     goal_info = calculate_goal_calories(biometrics["tdee"], profile["goal"])
     macro_targets = get_macro_targets(goal_info["target_calories"], profile["goal"])
 
-    col_gauge, col_donut, col_bars = st.columns(3)
+    with st.container(key="analysis-summary"):
+        col_gauge, col_donut, col_bars = st.columns(3, gap="small")
 
     with col_gauge:
         fig_gauge = calorie_gauge(
@@ -417,15 +483,19 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
     st.dataframe(df, width="stretch", hide_index=True)
 
 
-def _save_to_history(meal_data: dict):
+def _save_to_history(meal_data: dict, signature: str) -> bool:
     """Save the current meal only within the active browser session."""
-    st.session_state.meal_history.append(build_meal_record(meal_data))
+    return append_meal_once(
+        st.session_state.meal_history,
+        meal_data,
+        signature,
+        st.session_state.saved_meal_signatures,
+    )
 
 
 def _render_sample_hint():
     """Show sample food list when no image uploaded."""
-    st.markdown("---")
-    st.markdown("Món được hỗ trợ")
+    st.markdown("<p class='panel-kicker supported-kicker'>12 MÓN ĐANG ĐƯỢC HỖ TRỢ</p>", unsafe_allow_html=True)
     import config
 
     badges = "".join(

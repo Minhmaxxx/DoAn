@@ -127,6 +127,22 @@ def test_openai_non_streaming_adapter_uses_configured_model(monkeypatch):
     assert calls[0]["messages"][0]["content"] == SYSTEM_PROMPT
 
 
+def test_openai_client_uses_bounded_timeout_and_retries(monkeypatch):
+    captured = {}
+    fake_client = SimpleNamespace(close=lambda: None)
+
+    def create_client(**kwargs):
+        captured.update(kwargs)
+        return fake_client
+
+    monkeypatch.setattr("openai.OpenAI", create_client)
+    llm = NutriLLM(provider="openai", openai_api_key="test-key")
+
+    assert llm._get_openai() is fake_client
+    assert captured["timeout"] == config.LLM_TIMEOUT_SECONDS
+    assert captured["max_retries"] == config.LLM_MAX_RETRIES
+
+
 def test_connection_error_does_not_expose_exception_or_key(monkeypatch):
     secret = "AIza-secret-value"
     llm = NutriLLM(provider="google", google_api_key=secret)

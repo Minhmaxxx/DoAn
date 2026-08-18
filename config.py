@@ -33,14 +33,18 @@ GOOGLE_MODEL = os.getenv("GOOGLE_MODEL", "gemini-3.5-flash").strip() or "gemini-
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip() or "gpt-4o-mini"
 LLM_MAX_TOKENS = 1024
 LLM_TEMPERATURE = 0.7
+LLM_TIMEOUT_SECONDS = 45.0
+LLM_MAX_RETRIES = 1
 
 # ─── YOLOv8 Inference Settings ───────────────────────────────────────────────
 YOLO_CONF_THRESHOLD = 0.45  # Minimum confidence to accept a detection
 YOLO_IOU_THRESHOLD = 0.45   # IOU threshold for Non-Maximum Suppression
 YOLO_IMG_SIZE = 640          # Input resolution for YOLOv8
 MAX_UPLOAD_SIZE_MB = 20
-MAX_IMAGE_PIXELS = 25_000_000
-MAX_IMAGE_DIMENSION = 5000
+MAX_SOURCE_IMAGE_PIXELS = 25_000_000
+MAX_SOURCE_IMAGE_DIMENSION = 6000
+MAX_IMAGE_PIXELS = 4_000_000
+MAX_IMAGE_DIMENSION = 2048
 
 # ─── HITL Slider Settings ────────────────────────────────────────────────────
 SLIDER_MIN = 0.25    # Minimum portion ratio (quarter portion)

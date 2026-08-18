@@ -18,13 +18,17 @@ from utils.nutrition import (
     calculate_goal_calories, get_macro_targets,
 )
 from utils.visualization import macro_donut_chart
+from utils.pwa import render_install_button
 from utils.state import initialize_session_state
+from utils.ui import render_page_header, render_section_header
 
 # ─── Init session state ───────────────────────────────────────────────────────
 initialize_session_state()
 
 
 def main():
+    profile_saved = st.session_state.pop("profile_saved", False)
+
     if st.session_state.pop("clear_demo_credentials", False):
         st.session_state.pop("llm_runtime_config", None)
         st.session_state.demo_google_api_key = ""
@@ -35,45 +39,51 @@ def main():
             else "openai"
         )
 
-    st.markdown('<h1 class="page-title">Hồ sơ</h1>', unsafe_allow_html=True)
-    st.caption("Dùng để tính mục tiêu dinh dưỡng cá nhân.")
-    st.markdown("---")
+    render_page_header(
+        "THÔNG TIN CƠ THỂ",
+        "Hồ sơ của bạn.",
+        "Các chỉ số này giúp ước tính nhu cầu năng lượng; kết quả chỉ mang tính tham khảo.",
+        meta="LƯU TRONG PHIÊN",
+    )
+    if profile_saved:
+        st.success("Đã lưu hồ sơ.")
 
     profile = st.session_state.user_profile
-    col_form, col_results = st.columns([1, 1])
+    with st.container(key="profile-layout"):
+        col_form, col_results = st.columns([0.9, 1.1], gap="large")
 
     # ── Form ───────────────────────────────────────────────────────────────
     with col_form:
-        st.markdown("### Thông tin")
+        st.markdown("<p class='panel-kicker'>01 · THÔNG TIN ĐẦU VÀO</p>", unsafe_allow_html=True)
 
         with st.form("profile_form"):
-            profile["name"] = st.text_input(
+            name = st.text_input(
                 "Tên hiển thị",
                 value=profile.get("name", ""),
                 placeholder="Nguyễn Văn A",
             )
 
             col_g, col_a = st.columns(2)
-            profile["gender"] = col_g.selectbox(
+            gender = col_g.selectbox(
                 "Giới tính",
                 ["Nam", "Nữ"],
                 index=0 if profile.get("gender", "Nam") == "Nam" else 1,
             )
-            profile["age"] = col_a.number_input(
+            age = col_a.number_input(
                 "Tuổi",
                 min_value=10, max_value=100,
                 value=profile.get("age", 22),
             )
 
             col_h, col_w = st.columns(2)
-            profile["height_cm"] = col_h.number_input(
+            height_cm = col_h.number_input(
                 "Chiều cao (cm)",
                 min_value=100.0, max_value=250.0,
                 value=float(profile.get("height_cm", 170.0)),
                 step=0.5,
                 format="%.1f",
             )
-            profile["weight_kg"] = col_w.number_input(
+            weight_kg = col_w.number_input(
                 "Cân nặng (kg)",
                 min_value=30.0, max_value=300.0,
                 value=float(profile.get("weight_kg", 65.0)),
@@ -82,7 +92,7 @@ def main():
             )
 
             st.markdown("Mức độ vận động")
-            profile["activity_level"] = st.select_slider(
+            activity_level = st.select_slider(
                 "Chọn mức độ vận động",
                 options=[
                     "Ít vận động (ngồi nhiều)",
@@ -96,12 +106,11 @@ def main():
             )
 
             st.markdown("Mục tiêu")
-            profile["goal"] = st.radio(
+            goal_options = ["Giảm cân", "Giữ cân", "Tăng cơ", "Tăng cân"]
+            goal = st.radio(
                 "Mục tiêu",
-                ["Giảm cân", "Giảm cân nhanh", "Giữ cân", "Tăng cơ", "Tăng cân"],
-                index=["Giảm cân", "Giảm cân nhanh", "Giữ cân", "Tăng cơ", "Tăng cân"].index(
-                    profile.get("goal", "Giữ cân")
-                ),
+                goal_options,
+                index=goal_options.index(profile.get("goal", "Giữ cân")),
                 horizontal=True,
                 label_visibility="collapsed",
             )
@@ -112,13 +121,23 @@ def main():
                 width="stretch",
             )
             if submitted:
-                st.session_state.user_profile = profile
-                st.success("Đã lưu.")
+                st.session_state.user_profile = {
+                    "name": name.strip(),
+                    "age": age,
+                    "gender": gender,
+                    "weight_kg": weight_kg,
+                    "height_cm": height_cm,
+                    "activity_level": activity_level,
+                    "goal": goal,
+                }
+                st.session_state.profile_completed = True
+                st.session_state.llm_advice = None
+                st.session_state.profile_saved = True
                 st.rerun()
 
     # ── Results ────────────────────────────────────────────────────────────
     with col_results:
-        st.markdown("### Mục tiêu của bạn")
+        st.markdown("<p class='panel-kicker'>02 · CHỈ SỐ THAM KHẢO</p>", unsafe_allow_html=True)
 
         bmi = calculate_bmi(profile["weight_kg"], profile["height_cm"])
         bmi_cat, bmi_color = classify_bmi(bmi)
@@ -140,8 +159,6 @@ def main():
         # BMI scale visual
         _render_bmi_scale(bmi)
 
-        st.markdown("---")
-
         col_m1, col_m2 = st.columns(2)
         col_m1.metric(
             "BMR",
@@ -154,8 +171,7 @@ def main():
             help="Tổng năng lượng cơ thể bạn đốt cháy mỗi ngày dựa trên mức vận động.",
         )
 
-        st.markdown("---")
-        st.markdown(f"Mục tiêu: **{profile['goal']}**")
+        st.markdown(f"**Mục tiêu hiện tại:** {profile['goal']}")
 
         col_t1, col_t2 = st.columns(2)
         col_t1.metric(
@@ -168,8 +184,7 @@ def main():
             unsafe_allow_html=True,
         )
 
-        st.markdown("---")
-        st.markdown("Macro mỗi ngày")
+        st.markdown("**Macro mỗi ngày**")
 
         col_m, col_m2, col_m3 = st.columns(3)
         col_m.metric("Carb", f"{macro_targets['carbohydrate_g']:.0f}g")
@@ -185,8 +200,11 @@ def main():
         st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
     # ── LLM API Config ─────────────────────────────────────────────────────
-    st.markdown("---")
-    st.markdown("### Trợ lý AI")
+    render_section_header(
+        "03",
+        "Quyền riêng tư và trợ lý AI",
+        "Bạn quyết định khi nào dữ liệu hồ sơ và bữa ăn được gửi tới nhà cung cấp AI.",
+    )
     assistant_enabled = st.toggle(
         "Dùng trợ lý AI",
         key="assistant_enabled",
@@ -257,7 +275,14 @@ def main():
             st.rerun()
 
     # ── About project ──────────────────────────────────────────────────────
-    st.markdown("---")
+    render_section_header(
+        "04",
+        "Cài trên thiết bị",
+        "Thêm NutriVision lên màn hình chính để mở như một ứng dụng độc lập.",
+    )
+    with st.container(key="profile-install"):
+        render_install_button()
+
     with st.expander("Về ứng dụng"):
         st.markdown("""
        **NutriVision** là đồ án tốt nghiệp ngành Khoa học Máy tính.
