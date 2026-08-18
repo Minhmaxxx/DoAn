@@ -1,18 +1,10 @@
-streamlit>=1.35.0
-ultralytics>=8.2.0
-openai>=1.30.0
+# Production dependencies installed by Streamlit Community Cloud.
+streamlit>=1.50.0,<2.0.0
+ultralytics==8.4.86
+openai>=1.30.0,<3.0.0
 google-genai>=1.0.0,<3.0.0
-python-dotenv>=1.0.0
-plotly>=5.22.0
-pillow>=10.0.0
-numpy>=1.26.0
-pandas>=2.2.0
-pyyaml>=6.0.0
-opencv-python-headless>=4.9.0
-requests>=2.31.0
-tqdm>=4.66.0
-duckduckgo-search>=6.0.0
-icrawler>=0.6.9
-roboflow>=1.1.0
-pyngrok>=7.2.0
-pytest>=8.0.0
+python-dotenv>=1.0.0,<2.0.0
+plotly>=5.22.0,<7.0.0
+pillow>=10.0.0,<13.0.0
+numpy>=1.26.0,<3.0.0
+pandas>=2.2.0,<4.0.0

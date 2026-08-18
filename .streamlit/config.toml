@@ -6,9 +6,6 @@ secondaryBackgroundColor = "#ffffff"
 textColor = "#0f172a"
 font = "sans serif"
 [server]
-headless = false
-address = "localhost"
-port = 8501
 maxUploadSize = 20
 
 [browser]

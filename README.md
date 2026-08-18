@@ -75,8 +75,8 @@ AI không thể ước lượng chính xác thể tích món ăn từ ảnh 2D. 
 ### 1. Clone & Setup
 
 ```bash
-git clone https://github.com/yourusername/nutrivision.git
-cd nutrivision
+git clone https://github.com/Minhmaxxx/DoAn.git
+cd DoAn
 
 # Tạo virtual environment
 python -m venv .venv
@@ -85,6 +85,13 @@ python -m venv .venv
 
 # Cài đặt dependencies
 pip install -r requirements.txt
+```
+
+`requirements.txt` chỉ chứa thư viện cần để chạy ứng dụng. Nếu cần chạy test,
+ngrok, huấn luyện hoặc thu thập dữ liệu, cài bộ dependency phát triển:
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 ### 2. Cấu hình API Key
@@ -119,12 +126,32 @@ lý nếu cần → Lịch sử**.
 ### Release test
 
 ```bash
+pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
 Lệnh trên chạy test logic, hợp đồng 12 lớp, ảnh đầu vào, history, LLM mock,
 năm Streamlit page và smoke test Baseline B thật. Live API chỉ chạy khi đặt
 `RUN_LIVE_LLM_TEST=1` và đã có API key cho provider đang chọn.
+
+### Deploy và tự động cập nhật
+
+Hướng dẫn đầy đủ nằm tại [DEPLOYMENT.md](DEPLOYMENT.md). Cấu hình đề xuất trên
+Streamlit Community Cloud là repository `Minhmaxxx/DoAn`, branch `main`, file
+`app.py` và Python 3.11. Sau lần deploy đầu tiên, mỗi commit được push lên `main`
+sẽ được Streamlit tự động cập nhật.
+
+Checkpoint production `models/weights/best_baseline_B.pt` và hai ảnh fixture nhỏ
+của release gate phải có trong commit. Dataset, báo cáo, `.env`, secret và các
+checkpoint thử nghiệm không được đưa lên GitHub.
+
+### Lưu trữ đa thiết bị
+
+Hiện tại hồ sơ và lịch sử vẫn chỉ tồn tại trong phiên trình duyệt. Kế hoạch đã
+chốt để người dùng đăng nhập trên điện thoại mới và lấy lại dữ liệu là Supabase
+Auth + PostgreSQL + Row Level Security; xem [STORAGE_PLAN.md](STORAGE_PLAN.md).
+Schema chuẩn bị sẵn nằm tại [storage_schema.sql](storage_schema.sql), nhưng chưa
+được kết nối vào app cho tới khi có Supabase project và credentials.
 
 ### Chạy trên điện thoại bằng ngrok
 
@@ -160,6 +187,10 @@ nutrivision/
 ├── app.py                    # Entry point Streamlit
 ├── config.py                 # Global config
 ├── requirements.txt
+├── requirements-dev.txt
+├── DEPLOYMENT.md             # Deploy GitHub -> Streamlit Community Cloud
+├── STORAGE_PLAN.md           # Tài khoản, đồng bộ và khôi phục đa thiết bị
+├── storage_schema.sql        # Schema Supabase và RLS
 ├── PLAN.md                   # Kế hoạch 9 tuần
 ├── pages/
 │   ├── 1_Phan_tich_anh.py   # Food detection + HITL

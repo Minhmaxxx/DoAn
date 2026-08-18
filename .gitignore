@@ -24,15 +24,30 @@ venv/
 ENV/
 env/
 .env
+.env.*
+!.env.example
 
 # --- Streamlit Secrets (NEVER commit this!) ---
 .streamlit/secrets.toml
+.streamlit/credentials.toml
 
-# --- Model Weights (too large for Git, use Git LFS or share separately) ---
+# --- Credentials and local databases ---
+*.pem
+*.key
+credentials*.json
+service-account*.json
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# --- Model Weights ---
 models/weights/*.pt
 models/weights/*.onnx
 models/weights/*.engine
 models/weights/*.tflite
+# The validated 5.97 MB production checkpoint is required by clean deploys.
+!models/weights/best_baseline_B.pt
 
 # --- Training Artifacts ---
 runs/
@@ -46,7 +61,10 @@ data/sample_images/*
 data/meal_history.json
 test_model/weights_test/
 test_model/anh_test/
-test_model/benchmark_common_v1/images/
+test_model/benchmark_common_v1/images/*
+# Keep only the two small release-gate fixtures used by pytest.
+!test_model/benchmark_common_v1/images/1002_jpg.rf.4de4b051a6630d45d1024bd6e112a996.jpg
+!test_model/benchmark_common_v1/images/bg_002_jpg.rf.f428a7380f308f462b9418be9d579d54.jpg
 test_model/benchmark_common_v1/labels/
 test_model/benchmark_results_common_v1/Baseline_*/
 test_model/Ket_Qua_So_Sanh/
@@ -74,6 +92,14 @@ desktop.ini
 # --- Logs ---
 *.log
 logs/
+
+# --- Test and analysis output ---
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
 
 # --- Roboflow downloads ---
 *.zip

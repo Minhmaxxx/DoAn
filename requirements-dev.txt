@@ -1,0 +1,13 @@
+-r requirements.txt
+
+# Tests and local tunnel
+pytest>=8.0.0,<10.0.0
+pyngrok>=7.2.0,<9.0.0
+
+# Training, evaluation, and data collection
+pyyaml>=6.0.0,<7.0.0
+requests>=2.31.0,<3.0.0
+tqdm>=4.66.0,<5.0.0
+duckduckgo-search>=6.0.0,<9.0.0
+icrawler>=0.6.9,<1.0.0
+roboflow>=1.1.0,<2.0.0

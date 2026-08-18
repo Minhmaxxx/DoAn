@@ -65,7 +65,7 @@ def main():
         "</div>",
         unsafe_allow_html=True,
     )
-    st.caption("Dữ liệu hiện chỉ tồn tại trong phiên này. Kết nối bằng khóa cá nhân sẽ được bổ sung khi có hệ thống tài khoản.")
+    st.caption("Dữ liệu hiện chỉ tồn tại trong phiên này và chưa đồng bộ giữa các thiết bị.")
 
 
 def _show_system_status():

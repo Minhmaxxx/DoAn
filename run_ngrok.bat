@@ -14,7 +14,7 @@ if exist ".venv311\Scripts\activate.bat" (
 
 python -c "import streamlit, pyngrok" >nul 2>nul
 if errorlevel 1 (
-    echo [ERROR] Thieu dependency. Chay: pip install -r requirements.txt
+    echo [ERROR] Thieu dependency. Chay: pip install -r requirements-dev.txt
     pause
     exit /b 1
 )

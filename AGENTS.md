@@ -3,7 +3,8 @@
 ## Commands
 
 - Run commands from the repository root.
-- Install runtime dependencies with `pip install -r requirements.txt`.
+- Install runtime dependencies with `pip install -r requirements.txt`; install
+  `requirements-dev.txt` before running tests, ngrok, training or data collection.
 - Start the app with `python -m streamlit run app.py --server.port 8501`; on Windows, `run.bat` prefers `.venv311` and enables UTF-8.
 - Start a temporary phone-accessible HTTPS tunnel with `python run_ngrok.py` or `run_ngrok.bat`; it requires `NGROK_AUTHTOKEN` in `.env` and must never print or commit the token.
 - Run the release gate with `python -m pytest -q`; it includes pure logic, five-page AppTest rendering and the real Baseline B model fixture. The `live` LLM test is skipped unless `RUN_LIVE_LLM_TEST=1` is set.

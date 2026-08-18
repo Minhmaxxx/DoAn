@@ -21,7 +21,7 @@ Script này huấn luyện mô hình **YOLOv8n** (nano) bằng transfer learning
 ## Bước 1: Cài đặt thư viện
 
 ```bash
-pip install ultralytics roboflow icrawler python-dotenv
+pip install -r requirements-dev.txt
 ```
 
 ---
