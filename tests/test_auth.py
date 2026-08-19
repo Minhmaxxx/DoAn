@@ -59,6 +59,7 @@ class FakeAuthClient:
         self.refresh_session_raises = None
         self.link_identity_result = None
         self.exchange_code_result = None
+        self.sign_in_with_oauth_result = None
 
     def sign_in_anonymously(self):
         self.calls.append(("sign_in_anonymously", (), {}))
@@ -69,6 +70,10 @@ class FakeAuthClient:
         if self.refresh_session_raises:
             raise self.refresh_session_raises
         return self.refresh_session_result
+
+    def sign_in_with_oauth(self, credentials):
+        self.calls.append(("sign_in_with_oauth", (), {"credentials": credentials}))
+        return self.sign_in_with_oauth_result
 
     def link_identity(self, credentials):
         self.calls.append(("link_identity", (), {"credentials": credentials}))
@@ -462,3 +467,34 @@ def test_sync_blocker_names_the_specific_missing_piece(fake_st):
         }
     )
     assert auth.sync_blocker() is None
+
+
+def test_start_google_signin_needs_no_session_and_forwards_redirect(fake_st):
+    """Signing in is not the same call as linking: a second device is a guest
+    with no session, so link_identity() there would mint a new anonymous
+    account and then fail instead of reaching the existing account."""
+    client = FakeAuthClient()
+    client.sign_in_with_oauth_result = SimpleNamespace(
+        url="https://supabase.example/authorize"
+    )
+
+    url = auth.start_google_signin(client, redirect_to="https://app.example")
+
+    assert url == "https://supabase.example/authorize"
+    _, _, kwargs = client.calls[0]
+    assert kwargs["credentials"] == {
+        "provider": "google",
+        "options": {"redirect_to": "https://app.example"},
+    }
+
+
+def test_start_google_signin_omits_redirect_when_not_configured(fake_st):
+    """No redirect_to means Supabase falls back to its dashboard Site URL,
+    which is what production wants."""
+    client = FakeAuthClient()
+    client.sign_in_with_oauth_result = SimpleNamespace(url="https://x/authorize")
+
+    auth.start_google_signin(client)
+
+    _, _, kwargs = client.calls[0]
+    assert kwargs["credentials"] == {"provider": "google", "options": {}}

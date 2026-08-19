@@ -3,6 +3,7 @@ pages/3_Ho_so.py — User Profile & Biometric Setup
 Collects user's biometric data and computes health metrics (BMI, BMR, TDEE).
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -329,6 +330,33 @@ def main():
         """)
 
 
+def _render_google_signin_button():
+    """Sign in with Google to recover an account created on another device.
+
+    Two-step on purpose: the OAuth URL is only built after a click, never
+    during a plain render, so a guest visiting this page still constructs no
+    Supabase client (tests/test_pages.py enforces that). Both a redirect and
+    a visible link are offered because the redirect runs in the parent
+    document and can be blocked.
+    """
+    if st.button("Đăng nhập bằng Google", key="google_signin"):
+        try:
+            st.session_state.google_signin_url = auth.start_google_signin(
+                auth.get_client().auth, auth.site_url()
+            )
+        except Exception as error:
+            st.error(f"Không tạo được liên kết đăng nhập: {error}")
+
+    url = st.session_state.get("google_signin_url")
+    if url:
+        st.link_button("Tiếp tục tới Google", url, type="primary", width="stretch")
+        st.caption("Nếu trang không tự chuyển, bấm nút trên.")
+        st.html(
+            f"<script>window.parent.location.href = {json.dumps(url)};</script>",
+            unsafe_allow_javascript=True,
+        )
+
+
 def _render_sync_section(status: str):
     """Render the guest / anonymous / linked controls for cloud sync."""
     if status == "guest":
@@ -340,20 +368,27 @@ def _render_sync_section(status: str):
             )
             st.caption(f"Lý do: {blocker}")
             return
-        st.markdown(
-            "Bật đồng bộ để hồ sơ và lịch sử bữa ăn được lưu trên máy chủ thay vì "
-            "biến mất khi đóng trình duyệt. Không cần đăng ký hay mật khẩu."
-        )
-        st.caption(
-            "Khi bật, hồ sơ và lịch sử bữa ăn hiện có sẽ được tải lên tài khoản của bạn."
-        )
-        if st.button("Bật đồng bộ", type="primary", key="enable_sync"):
-            try:
-                enable_sync()
-            except Exception as error:
-                st.error(f"Không bật được đồng bộ: {error}")
-            else:
-                st.rerun()
+        col_new, col_back = st.columns(2)
+        with col_new:
+            st.markdown("**Chưa có dữ liệu trên máy chủ**")
+            st.caption(
+                "Lưu hồ sơ và lịch sử hiện có lên tài khoản mới. "
+                "Không cần đăng ký hay mật khẩu."
+            )
+            if st.button("Bật đồng bộ", type="primary", key="enable_sync"):
+                try:
+                    enable_sync()
+                except Exception as error:
+                    st.error(f"Không bật được đồng bộ: {error}")
+                else:
+                    st.rerun()
+        with col_back:
+            st.markdown("**Đã có tài khoản Google**")
+            st.caption(
+                "Dùng khi bạn đã liên kết Google ở thiết bị khác và muốn lấy lại "
+                "dữ liệu cũ. Dữ liệu chưa lưu trong phiên này sẽ bị thay thế."
+            )
+            _render_google_signin_button()
         return
 
     if status == "anonymous":
@@ -361,6 +396,11 @@ def _render_sync_section(status: str):
         st.warning(
             "Hiện chỉ **trình duyệt này** mở được dữ liệu đó. Xóa cookie hoặc đổi "
             "thiết bị là mất. Liên kết Google để dùng trên máy khác."
+        )
+        st.caption(
+            "Nếu tài khoản Google này đã liên kết ở thiết bị khác, hãy **Đăng xuất** "
+            "rồi chọn *Đăng nhập bằng Google* — liên kết lần hai sẽ báo lỗi và "
+            "không lấy được dữ liệu cũ."
         )
     else:
         st.success("Đã liên kết Google — đăng nhập trên thiết bị khác để xem dữ liệu.")

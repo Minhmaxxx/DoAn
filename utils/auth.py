@@ -304,6 +304,29 @@ def start_google_link(
     return response.url
 
 
+def start_google_signin(
+    client: SupabaseAuthClient, redirect_to: Optional[str] = None
+) -> str:
+    """Begin signing IN with Google, to reach an account that already exists.
+
+    Distinct from start_google_link() and not interchangeable with it:
+
+    - link_identity() attaches Google to whatever account this browser is
+      already signed into. It needs a session, and it fails if that Google
+      identity belongs to another account.
+    - sign_in_with_oauth() needs no session and resolves to the account that
+      Google identity already belongs to.
+
+    So a second device — which has no cookie, and is therefore a guest — must
+    use this one. Linking there would instead mint a fresh anonymous account
+    and then fail, which is exactly the dead end that made a signed-in user
+    see an empty app on a new device.
+    """
+    options = {"redirect_to": redirect_to} if redirect_to else {}
+    response = client.sign_in_with_oauth({"provider": "google", "options": options})
+    return response.url
+
+
 def complete_oauth_callback(client: SupabaseAuthClient, auth_code: str) -> str:
     """Exchange the `?code=` Supabase appended after Google OAuth for a session.
 
