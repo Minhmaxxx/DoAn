@@ -332,11 +332,13 @@ def main():
 def _render_sync_section(status: str):
     """Render the guest / anonymous / linked controls for cloud sync."""
     if status == "guest":
-        if not auth.sync_available():
+        blocker = auth.sync_blocker()
+        if blocker:
             st.info(
-                "Bản triển khai này chưa cấu hình đồng bộ. Dữ liệu chỉ tồn tại "
+                "Bản triển khai này chưa bật đồng bộ, nên dữ liệu chỉ tồn tại "
                 "trong phiên và sẽ mất khi đóng trình duyệt."
             )
+            st.caption(f"Lý do: {blocker}")
             return
         st.markdown(
             "Bật đồng bộ để hồ sơ và lịch sử bữa ăn được lưu trên máy chủ thay vì "

@@ -347,12 +347,14 @@ def logout(client: Optional[SupabaseAuthClient] = None) -> None:
 
 # ─── App bootstrap ───────────────────────────────────────────────────────────
 
-def sync_available() -> bool:
-    """True when cloud sync can even be attempted on this deployment.
+def sync_blocker() -> Optional[str]:
+    """Why cloud sync can't be offered here, or None when it can.
 
-    False when the `supabase` package is missing or `[supabase]` secrets are
-    absent — the state CI runs in. Pages use this to hide sync controls
-    rather than offer a button that can only fail.
+    Returns a specific reason rather than a bare False: the three causes
+    (library missing, no secrets file, incomplete `[supabase]` section) look
+    identical to a user staring at the profile page, and telling them
+    "chưa cấu hình" for all three makes a misconfigured deployment
+    undiagnosable.
 
     Checks configuration instead of calling get_client(), so merely rendering
     the profile page as a guest doesn't construct a Supabase client.
@@ -360,13 +362,34 @@ def sync_available() -> bool:
     try:
         import supabase  # noqa: F401
     except ImportError:
-        return False
+        return (
+            "Thiếu thư viện `supabase` trên bản triển khai này "
+            "(kiểm tra requirements.txt và log build)."
+        )
 
     try:
         supa_secrets = st.secrets.get("supabase", {})
     except Exception:
-        return False
-    return bool(supa_secrets.get("url") and supa_secrets.get("publishable_key"))
+        return (
+            "Không đọc được Streamlit secrets. Thêm mục `[supabase]` trong "
+            "phần Secrets của app rồi khởi động lại."
+        )
+
+    missing = [
+        key for key in ("url", "publishable_key") if not supa_secrets.get(key)
+    ]
+    if missing:
+        return (
+            "Mục `[supabase]` trong secrets thiếu: "
+            + ", ".join(f"`{key}`" for key in missing)
+            + "."
+        )
+    return None
+
+
+def sync_available() -> bool:
+    """True when cloud sync can be attempted. See sync_blocker() for why not."""
+    return sync_blocker() is None
 
 
 def sync_status() -> str:

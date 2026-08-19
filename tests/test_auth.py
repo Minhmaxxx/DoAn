@@ -437,3 +437,28 @@ def test_sync_available_follows_configuration_without_building_a_client(monkeypa
         }
     )
     assert auth.sync_available() is True
+
+
+def test_sync_blocker_names_the_specific_missing_piece(fake_st):
+    """One generic "chưa cấu hình" for three different causes makes a
+    misconfigured deployment impossible to diagnose from the UI."""
+    fake_st.secrets = SimpleNamespace(
+        get=lambda key, default=None: {"url": "https://x.supabase.co"}
+    )
+    blocker = auth.sync_blocker()
+    assert blocker is not None and "publishable_key" in blocker
+    assert "url" not in blocker  # url is present, don't blame it
+
+    def raise_secrets(key, default=None):
+        raise RuntimeError("no secrets.toml anywhere")
+
+    fake_st.secrets = SimpleNamespace(get=raise_secrets)
+    assert "Streamlit secrets" in auth.sync_blocker()
+
+    fake_st.secrets = SimpleNamespace(
+        get=lambda key, default=None: {
+            "url": "https://x.supabase.co",
+            "publishable_key": "k",
+        }
+    )
+    assert auth.sync_blocker() is None
