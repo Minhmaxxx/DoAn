@@ -162,3 +162,20 @@ def test_profile_is_completed_only_after_form_submission():
     assert app.session_state["profile_completed"] is True
     assert any("Đã lưu hồ sơ" in success.value for success in app.success)
     assert not app.exception
+
+
+@pytest.mark.parametrize("app_file", APP_FILES, ids=lambda path: path.stem)
+def test_guest_mode_never_constructs_a_supabase_client(app_file):
+    """The release gate must stay offline. Guest mode is what keeps it that
+    way, so no page may build a Supabase client just by rendering.
+
+    This caught a real regression: under AppTest, st.context.cookies.get()
+    returns a truthy MagicMock, so bootstrap_session() believed it held a
+    refresh token and built a client (and on a dev machine with real secrets
+    would have tried to refresh with the mock over the network).
+    """
+    app = AppTest.from_file(str(app_file), default_timeout=45)
+    app.run()
+    assert not app.exception, [str(exception) for exception in app.exception]
+    assert "_supabase_client" not in app.session_state.filtered_state
+    assert app.session_state.filtered_state.get("auth_user") is None

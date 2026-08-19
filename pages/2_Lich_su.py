@@ -15,6 +15,8 @@ sys.path.insert(0, str(ROOT_DIR))
 
 from utils.nutrition import calculate_goal_calories, calculate_bmr, calculate_tdee
 from utils.history import sort_meal_history, vietnam_now
+from utils.auth import sync_status
+from utils.repository import get_repository
 from utils.visualization import daily_calorie_chart, macro_donut_chart
 from utils.state import initialize_session_state
 from utils.ui import (
@@ -29,13 +31,23 @@ initialize_session_state()
 
 
 def load_all_history() -> list[dict]:
-    """Return meal history belonging only to the active browser session."""
+    """Return this account's meal history, newest first.
+
+    Reads the session copy rather than re-querying on every rerun: app.py
+    hydrates it once after restoring a session, and the analysis page refreshes
+    it after each successful save. For guests this is the only copy there is.
+    """
     return sort_meal_history(st.session_state.meal_history)
 
 
 def main():
+    status = sync_status()
     render_page_header(
-        "NHẬT KÝ THEO PHIÊN",
+        {
+            "guest": "NHẬT KÝ THEO PHIÊN",
+            "anonymous": "NHẬT KÝ TRÊN MÁY CHỦ",
+            "linked": "NHẬT KÝ ĐÃ ĐỒNG BỘ",
+        }[status],
         "Lịch sử bữa ăn.",
         "Nhìn lại năng lượng, macro và nhịp ăn trong bảy ngày gần nhất.",
         meta="GIỜ VIỆT NAM",
@@ -72,7 +84,11 @@ def main():
         [
             ("HÔM NAY", f"{today_calories:.0f}", "kcal đã ghi"),
             ("BỮA HÔM NAY", str(len(today_meals)), "bữa đã xác nhận"),
-            ("TỔNG ĐÃ LƯU", str(len(history)), "trong phiên này"),
+            (
+                "TỔNG ĐÃ LƯU",
+                str(len(history)),
+                "trong phiên này" if status == "guest" else "trong tài khoản",
+            ),
         ]
     )
 
@@ -89,7 +105,13 @@ def main():
         fig_hist = daily_calorie_chart(display_dates, calories_7, target_cal)
         st.plotly_chart(fig_hist, width="stretch", config={"displayModeBar": False})
 
-    render_section_header("02", "Các bữa đã xác nhận", "Tối đa 50 bản ghi gần nhất trong phiên.")
+    render_section_header(
+        "02",
+        "Các bữa đã xác nhận",
+        "Tối đa 50 bản ghi gần nhất trong phiên."
+        if status == "guest"
+        else "Tối đa 50 bản ghi gần nhất trong tài khoản.",
+    )
 
     with st.container(key="history-meals"):
         tab_all, tab_today = st.tabs(["Tất cả", "Hôm nay"])
@@ -129,9 +151,17 @@ def main():
     with st.expander("Xóa lịch sử"):
         st.warning("Không thể hoàn tác.")
         if st.button("Xóa tất cả", type="secondary"):
-            st.session_state.meal_history = []
-            st.success("Đã xóa.")
-            st.rerun()
+            try:
+                get_repository().delete_all_meals()
+            except Exception as error:
+                st.error(f"Không xóa được trên máy chủ: {error}")
+            else:
+                # SessionRepository clears session state itself; a cloud delete
+                # only touches the database, so clear the session copy here too.
+                st.session_state.meal_history = []
+                st.session_state.saved_meal_signatures = set()
+                st.success("Đã xóa.")
+                st.rerun()
 
 
 def _render_history_table(records: list[dict]):

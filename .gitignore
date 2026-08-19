@@ -104,3 +104,5 @@ htmlcov/
 # --- Roboflow downloads ---
 *.zip
 datasets/
+
+CLAUDE.md

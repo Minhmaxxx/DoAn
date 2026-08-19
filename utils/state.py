@@ -31,3 +31,6 @@ def initialize_session_state() -> None:
     st.session_state.setdefault("current_meal", None)
     # The assistant is optional; credentials may stay configured while it is off.
     st.session_state.setdefault("assistant_enabled", True)
+    # Cloud identity: None means guest (session-only). utils/auth.py owns the
+    # value; declared here so the key is discoverable alongside the others.
+    st.session_state.setdefault("auth_user", None)

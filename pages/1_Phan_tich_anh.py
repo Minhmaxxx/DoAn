@@ -35,7 +35,7 @@ from utils.nutrition import (
     get_macro_targets,
 )
 from utils.llm import NutriLLM
-from utils.history import append_meal_once
+from utils.repository import SessionRepository, get_repository
 from utils.images import ImageInputError, load_uploaded_image
 from utils.visualization import macro_donut_chart, calorie_gauge, macro_progress_bars
 from utils.state import initialize_session_state
@@ -339,10 +339,17 @@ def main():
             )
 
         if save_btn and st.session_state.meal_nutrition:
-            if _save_to_history(st.session_state.meal_nutrition, current_signature):
-                st.success("Đã lưu bữa ăn vào lịch sử!")
+            try:
+                saved = _save_to_history(
+                    st.session_state.meal_nutrition, current_signature
+                )
+            except Exception as error:
+                st.error(f"Không lưu được bữa ăn lên máy chủ: {error}")
             else:
-                st.info("Bữa ăn này đã được lưu.")
+                if saved:
+                    st.success("Đã lưu bữa ăn vào lịch sử!")
+                else:
+                    st.info("Bữa ăn này đã được lưu.")
 
         if not assistant_enabled:
             st.session_state.llm_advice = None
@@ -484,13 +491,25 @@ def _render_meal_summary(meal_totals: dict, adjusted_items: list):
 
 
 def _save_to_history(meal_data: dict, signature: str) -> bool:
-    """Save the current meal only within the active browser session."""
-    return append_meal_once(
-        st.session_state.meal_history,
-        meal_data,
-        signature,
-        st.session_state.saved_meal_signatures,
-    )
+    """Save the confirmed meal through whichever repository this session uses.
+
+    Guests keep the exact previous behaviour (session only); a synced account
+    writes to Supabase first and only mirrors into session state once the
+    server accepted it, so the history never shows a meal that was not stored.
+    Raises on a failed cloud write — the caller reports it instead of showing
+    a false "Đã lưu".
+    """
+    repo = get_repository()
+    if isinstance(repo, SessionRepository):
+        return repo.save_meal(meal_data, signature)
+
+    if signature in st.session_state.saved_meal_signatures:
+        return False
+    saved = repo.save_meal(meal_data, signature)
+    if saved:
+        st.session_state.saved_meal_signatures.add(signature)
+        st.session_state.meal_history = repo.load_meals()
+    return saved
 
 
 def _render_sample_hint():

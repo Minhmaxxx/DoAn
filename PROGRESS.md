@@ -1,7 +1,7 @@
 # NutriVision Progress Record
 
 **Cập nhật:** 2026-08-18<br>
-**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật.
+**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật. Lưu trữ đa thiết bị (`STORAGE_PLAN.md`): Giai đoạn 0, A và C xong 2026-08-19 — đồng bộ Supabase đã nối vào app dưới dạng **opt-in** ("Bật đồng bộ"), chế độ khách vẫn là mặc định; 6 lỗi phát hiện nhờ chạy thật đã vá. Liên kết Google đã kiểm thử trên trình duyệt thật và xác nhận giữ nguyên `user_id`. Còn nợ: bài 2/3/5/13 trong ma trận kiểm thử, và Giai đoạn D (hardening XSS, export JSON).
 
 Tài liệu này lưu lại các quyết định, kết quả kiểm tra và bằng chứng có thể dùng khi viết báo cáo hoặc tiếp tục phát triển.
 
@@ -426,6 +426,115 @@ Xác minh tự động:
 
 Giới hạn còn lại: cần mở bản HTTPS production trên điện thoại thật để xác nhận camera permission, bàn phím, touch target, safe-area iPhone/Android và thao tác cài từ Safari/Chrome thực tế.
 
+### 2026-08-18 - Kế hoạch lưu trữ đa thiết bị: chốt kiến trúc và Giai đoạn B
+
+**Mục tiêu:** giải quyết việc hồ sơ và lịch sử chỉ sống trong `st.session_state` (mất khi đổi thiết bị hoặc hết phiên), mà không buộc người dùng đăng ký/đăng nhập truyền thống.
+
+Quyết định kiến trúc (`STORAGE_PLAN.md`, đã qua 3 bản):
+
+- Bản 1 chọn Supabase Postgres + RLS nhưng bỏ sót việc giữ phiên trên Streamlit.
+- Bản 2 thêm `st.login()` (Google OIDC) để giữ phiên qua cookie, nhưng việc gộp danh tính `st.login()` với user Supabase cần một bước di trú dữ liệu.
+- Bản 3 (chốt): bỏ `st.login()`, để Supabase quản lý danh tính từ đầu. Tài khoản **ẩn danh được tạo lười** (`sign_in_anonymously()`, chỉ gọi ngay trước lần lưu đầu tiên) rồi **nâng cấp bằng Google** qua `link_identity()` khi cần đa thiết bị — cách này giữ nguyên `auth.users.id` nên không cần di trú và `storage_schema.sql` không đổi dòng nào. Đã xác minh trong `site-packages` rằng `st.context.cookies` chỉ đọc, nên refresh token phải ghi bằng JS vào cookie qua `st.html(..., unsafe_allow_javascript=True)`, cùng pattern `utils/pwa.py` đã dùng.
+- Loại phương án "mỗi user một key bí mật" (ma sát khôi phục cao hơn, mất key là mất sạch) và email/mật khẩu (SMTP free tier dễ fail đúng lúc demo).
+- Chi phí xác nhận là **$0**: OAuth client trên Google Cloud Console không cần bật billing; Supabase free tier không cần thẻ. Không dùng AWS credit cho phần này vì phải viết lại Cognito/RDS và bỏ RLS đã thiết kế xong, đổi lấy quá ít.
+
+Giai đoạn B — module code, không cần Supabase project hay mạng:
+
+- `utils/auth.py`: `ensure_account()`, `restore_session()`, `start_google_link()`, `complete_oauth_callback()`, `logout()`. Mọi hàm chạm Supabase nhận `client` qua tham số (cùng pattern `NutriLLM._get_google()`/`_get_openai()`), nên test được bằng fake client, không cần package `supabase` cài sẵn.
+- `utils/repository.py`: `Repository` protocol (`@runtime_checkable`), `SessionRepository` (khách, giữ nguyên hành vi cũ trong `st.session_state`) và `SupabaseRepository` (đã lưu). `get_repository()` chọn theo `utils.auth.current_user_id()`.
+- `utils/history.py`: thêm `meal_uuid(user_id, signature)` (uuid5 xác định, chống ghi trùng khi retry) và `record_from_row()` (map một dòng `meals` về đúng shape record trong session, đi qua `as_vietnam_time()` để tránh lệch múi giờ).
+- 26 test mới (`tests/test_auth.py`, `tests/test_repository.py`) + 5 test bổ sung (`tests/test_history.py`), toàn bộ offline — `restore_session()` được test bằng cách tiêm một `st` giả (`monkeypatch.setattr(auth, "st", fake)`) vì `st.context.cookies` không có cách nào ghi giá trị test từ bên ngoài.
+
+Xác minh:
+
+| Lệnh/kiểm tra | Kết quả |
+|---|---|
+| `.venv311\Scripts\python.exe -m pytest -q` | `107 passed, 1 skipped`; skip duy nhất là live LLM |
+| `.venv311\Scripts\python.exe -m pytest -q tests/test_auth.py tests/test_repository.py tests/test_history.py` | `40 passed` |
+| `.venv311\Scripts\python.exe test_imports.py` | Pass config, nutrition, fallback, chart và checksum Baseline B |
+
+Quyết định phạm vi: **chưa** nối vào `app.py`/`pages/*.py` (đó là Giai đoạn C). Tên tham số của `client.link_identity()` và `client.exchange_code_for_session()` trong `utils/auth.py` viết theo hiểu biết về API `supabase-py`/GoTrue nhưng **chưa xác minh với package thật** — package `supabase` chưa có trong `requirements.txt`/`requirements-dev.txt` (cố ý, thuộc Giai đoạn A). Giả định quan trọng nhất chưa kiểm chứng: `link_identity()` giữ nguyên `auth.users.id` sau khi gắn Google — đây là việc của Giai đoạn 0 (mục 11 trong `STORAGE_PLAN.md`).
+
+### 2026-08-19 - Lưu trữ đa thiết bị: Giai đoạn A (người dùng) và Giai đoạn 0 (spike thật)
+
+**Mục tiêu:** hoàn tất hạ tầng Supabase/Google thật (Giai đoạn A), rồi chạy Giai đoạn 0 để xác minh mọi giả định API trong `utils/auth.py`/`utils/repository.py` trước khi nối vào trang (Giai đoạn C).
+
+Giai đoạn A — người dùng thực hiện, đã xác nhận xong: tạo Supabase project (`ntyyhenrjgvvjzhyxrey`), chạy `storage_schema.sql`, bật Anonymous sign-in, tạo Google OAuth Client (Authorized JavaScript origins: `localhost:8501` + domain production; Authorized redirect URI: callback URL do Supabase cấp, không phải domain app), dán Client ID/Secret vào Supabase → Authentication → Providers → Google, đặt Site URL production. `.streamlit/secrets.toml.example` được thêm làm mẫu; `.streamlit/secrets.toml` thật đã tạo trên máy dev (xác nhận nằm ngoài git qua `git check-ignore`).
+
+Giai đoạn 0 — cài `supabase==2.31.0` vào `.venv311`, chạy spike thật (không mock) chống lại project trên. Giả định quan trọng nhất được xác nhận đúng: `link_identity()` giữ nguyên `auth.users.id`. Nhưng phát hiện **4 chỗ sai** trong code đã viết ở Giai đoạn B, chỉ lộ ra khi chạy thật (unit test dùng fake client nên không bắt được):
+
+1. `start_google_link()` gọi `link_identity({"provider": "google", "redirect_to": ...})` — sai vị trí, `redirect_to` phải lồng trong `options`; đặt sai không báo lỗi, chỉ âm thầm bị bỏ qua.
+2. `get_client()` dựng `Client` mới mỗi lần gọi — làm mọi truy vấn `SupabaseRepository` sau khi đăng nhập vẫn chạy bằng anon key (Postgrest chỉ nhận JWT qua listener sự kiện sign-in/refresh gắn trên chính object `Client`), nghĩa là RLS sẽ chặn hết một khi nối vào trang thật. Đã sửa: cache `Client` trong `st.session_state["_supabase_client"]`.
+3. PKCE `code_verifier` do `link_identity()` tự sinh chỉ lưu trong bộ nhớ của `Client` — không sống sót qua việc redirect sang Google rồi quay lại (một lượt tải trang mới, `st.session_state` không giữ được). Đã thêm `_CodeVerifierCookieStorage` (cookie riêng, TTL 10 phút) gắn qua `SyncClientOptions(persist_session=False, storage=...)`.
+4. `SupabaseRepository.load_profile()` giả định `maybe_single().execute()` luôn trả response object có `.data` — thực tế trả `None` thẳng khi không có dòng nào. Đã sửa thành `result.data if result else None`.
+
+Xác minh bằng ghi/đọc/xóa thật trên project (không chỉ đọc mã nguồn SDK): tạo tài khoản ẩn danh → `save_profile`/`load_profile` round-trip đúng → `save_meal`/`load_meals` round-trip đúng (kể cả quy đổi giờ Việt Nam) → `delete_all_meals` → xóa profile → `logout()`. Dữ liệu test đã dọn sạch; chỉ còn một dòng `auth.users` ẩn danh mồ côi (giống một khách vãng lai thật, không hại gì).
+
+| Lệnh/kiểm tra | Kết quả |
+|---|---|
+| Spike thật chống Supabase project (3 script tạm, đã xóa) | `sign_in_anonymously`, `refresh_session`, `link_identity`, `exchange_code_for_session`, `sign_out` đúng shape sau khi sửa 4 điểm trên; ghi/đọc/xóa qua RLS thành công |
+| `.venv311\Scripts\python.exe -m pytest -q` | `111 passed, 1 skipped` |
+| `.venv311\Scripts\python.exe -m pytest -q tests/test_auth.py tests/test_repository.py` | `30 passed` |
+| `.venv311\Scripts\python.exe test_imports.py` | Pass |
+
+Thay đổi thêm: `requirements.txt` thêm `supabase>=2.0.0,<3.0.0` (Giai đoạn A liệt kê việc này; thêm sớm để môi trường production khớp với những gì đã xác minh, dù Giai đoạn C — nối vào trang — chưa làm). `STORAGE_PLAN.md` mục 6/11 cập nhật theo tên hàm thật và 4 phát hiện trên.
+
+Quyết định phạm vi: vẫn **chưa** nối vào `app.py`/`pages/*.py`. Còn thiếu trong Giai đoạn A: cron GitHub Actions chống Supabase free-tier pause sau 7 ngày.
+
+### 2026-08-19 - Lưu trữ đa thiết bị: cron chống pause và Giai đoạn C (nối vào app)
+
+**Mục tiêu:** hoàn tất phần còn thiếu của Giai đoạn A (cron chống pause) và thực hiện Giai đoạn C — nối `utils/auth.py` + `utils/repository.py` vào app thật.
+
+Cron chống pause (`.github/workflows/supabase-keepalive.yml`): chạy thứ Hai và thứ Năm thay vì hàng tuần, vì ngưỡng pause của Supabase là 7 ngày nên cron 7 ngày không có biên an toàn — một lần chạy trễ là project ngủ. Gọi một REST request nhẹ bằng anon key; RLS khiến nó trả `[]`, đó là kết quả mong muốn (chứng minh project còn sống mà không đọc dữ liệu ai). Dùng GitHub secrets `SUPABASE_URL`/`SUPABASE_PUBLISHABLE_KEY` thay vì ghi thẳng vào file: repo có thể public, và Anonymous sign-in đang bật nên anon key lộ ra cho phép bot tạo user rác. Nếu thiếu secrets thì workflow cảnh báo và thoát 0, không spam email lỗi hàng tuần. Đã xác minh thật: `curl` đúng lệnh đó trả `HTTP 200` và `[]`.
+
+Giai đoạn C — thay đổi thiết kế có chủ ý so với `STORAGE_PLAN.md` mục 6: **đồng bộ là opt-in bằng nút "Bật đồng bộ"**, không tự tạo tài khoản khi lưu hồ sơ lần đầu. Lý do: (1) không nên âm thầm đẩy hồ sơ sức khỏe lên máy chủ khi người dùng chỉ bấm "Lưu thay đổi"; (2) giữ chế độ khách làm mặc định thật, nên release gate offline theo cấu trúc — máy dev đã có `secrets.toml` thật, nếu tự bật thì mỗi lần chạy AppTest trang hồ sơ sẽ tạo một tài khoản ẩn danh sống. Tính "tạo lười" của kế hoạch không đổi: khách không bật thì `auth.users` không có dòng nào.
+
+Các file đã nối:
+
+- `app.py`: `bootstrap_session()` chạy trước mọi trang (khôi phục cookie hoặc hoàn tất `?code=` sau OAuth), rồi `hydrate_session()` nạp hồ sơ + tối đa 50 bữa gần nhất. Caption landing đổi theo ba trạng thái.
+- `pages/3_Ho_so.py`: lưu hồ sơ qua `get_repository()`; mục "03 · Đồng bộ và thiết bị" mới với nút Bật đồng bộ / Liên kết Google / Đăng xuất; nhãn header đổi theo trạng thái (`LƯU TRONG PHIÊN` → `LƯU TRÊN MÁY CHỦ` → `ĐÃ ĐỒNG BỘ`). Mục LLM và Cài đặt dịch số thành 04/05.
+- `pages/1_Phan_tich_anh.py`: `_save_to_history()` ghi lên máy chủ trước, chỉ mirror vào session khi server đã nhận; lỗi mạng hiện `st.error` thay vì "Đã lưu" giả.
+- `pages/2_Lich_su.py`: "Xóa tất cả" qua repository; nhãn tiêu đề/thống kê đổi theo trạng thái.
+- `utils/navigation.py`, `utils/state.py`: chỉ báo trạng thái đồng bộ trong app shell; khai báo key `auth_user`.
+- `utils/repository.py`: thêm `save_record()`, `enable_sync()` (đẩy hồ sơ + lịch sử khách lên rồi đọc lại) và `hydrate_session()`.
+
+**Hai lỗi thật phát hiện khi chạy thật, unit test dùng fake không bắt được:**
+
+1. `record_signature()` ban đầu khóa theo `timestamp`. Đo thực tế trên Windows: `datetime.now()` phân giải ~16ms nên **năm bản ghi tạo liên tiếp có timestamp giống hệt nhau** — hai bữa ăn khác nhau bị đè thành một dòng khi di trú lên cloud (mất dữ liệu thật). Đã đổi sang hash SHA-256 nội dung bản ghi; thêm test hồi quy.
+2. Dưới AppTest, `st.context.cookies.get()` trả **`MagicMock`** — luôn truthy. `bootstrap_session()` vì thế tưởng có refresh token, dựng Supabase client và (trên máy dev có secrets) sẽ gọi mạng refresh bằng mock object, phá cam kết release gate không chạm mạng. Đã sửa: chỉ chấp nhận cookie là `str` không rỗng; `sync_available()` cũng đổi sang đọc cấu hình thay vì dựng client.
+
+Xác minh:
+
+| Lệnh/kiểm tra | Kết quả |
+|---|---|
+| `.venv311\Scripts\python.exe -m pytest -q` | `134 passed, 1 skipped` |
+| `.venv311\Scripts\python.exe test_imports.py` | Pass |
+| Spike thật: khách có hồ sơ + 2 bữa → `enable_sync()` → Supabase | Hồ sơ và cả 2 bữa lên đúng, chạy lại `enable_sync()` vẫn là 2 bữa (không nhân đôi), xóa sạch, `logout()` về `guest` |
+| `curl` keepalive chống project của mình | `HTTP 200`, body `[]` |
+| AppTest cả 6 trang ở chế độ khách | Không exception, **không trang nào dựng Supabase client** (đã chốt bằng test trong `tests/test_pages.py`) |
+
+Quyết định phạm vi: Giai đoạn D (rà `unsafe_allow_html`, test XSS, export JSON) chưa làm.
+
+### 2026-08-19 - Kiểm thử liên kết Google trên trình duyệt thật (bài 4, ma trận mục 12)
+
+**Mục tiêu:** chạy thật luồng khách → ẩn danh → liên kết Google trên trình duyệt, xác minh giả định cốt lõi rằng `link_identity()` giữ nguyên `user_id`.
+
+Chạy app local (`streamlit run app.py`, port 8501) với `site_url = "http://localhost:8501"` trong `.streamlit/secrets.toml`.
+
+Phát hiện thêm **một prerequisite Supabase mà kế hoạch chưa bắt được**: `link_identity()` trả lỗi `Manual linking is disabled`. Phải bật **Allow manual linking** ở Authentication → Sign In / Providers (khu toggle phía trên danh sách provider, cạnh Anonymous sign-ins); mặc định Supabase tắt. Không bài test tự động nào lộ ra được vì luồng này cần một phiên đăng nhập thật. Đã ghi vào `STORAGE_PLAN.md` mục 8. Cũng cần thêm `http://localhost:8501` vào Redirect URLs của Supabase để test local (không phải thêm vào Google Console — Google luôn redirect về callback của Supabase, không về app).
+
+**Kết quả: giả định cốt lõi được xác nhận.** Truy vấn `profiles` join `auth.users` sau khi liên kết:
+
+| user_id | name | email | is_anonymous |
+|---|---|---|---|
+| `6deef3b1-…14d750` | Lăng Nhật Minh | (email Google) | false |
+
+Một dòng duy nhất mang cả hồ sơ lẫn danh tính Google: tài khoản ẩn danh được nâng cấp tại chỗ, `user_id` không đổi, hồ sơ đã lưu lúc còn ẩn danh vẫn thuộc về tài khoản đó. Không cần bước di trú, phương án dự phòng RPC `security definer` ở mục 13 `STORAGE_PLAN.md` không phải dùng đến. Lưu ý khi đọc `auth.identities`: user ẩn danh **không có** dòng identity nào, nên sau khi gắn Google `providers` chỉ hiện `["google"]` — đó là bình thường, không phải dấu hiệu tài khoản mới.
+
+Ghi nhận sai sót trong quá trình: các script spike có đoạn dọn dữ liệu ở cuối, nhưng hai lần chạy crash giữa chừng (lỗi encoding console và assert số bữa ăn) nên không chạy tới đoạn dọn, để lại hai dòng `profiles` rác ("Spike Test", "Khách Spike") cùng 8 tài khoản ẩn danh mồ côi — đã phát hiện khi kiểm tra bảng và xóa bằng `delete from auth.users where is_anonymous = true` (cascade sang `profiles`/`meals`). Bài học: script kiểm thử chạm dữ liệu thật cần dọn trong `try/finally`, không đặt ở cuối luồng thành công.
+
+Còn nợ trong ma trận mục 12: bài 2 (F5 giữ đăng nhập), 3 (mở lại từ icon PWA), 5 (redeploy không mất phiên), 13 (PWA standalone trên iPhone).
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
 ### Phase C5 - Kiểm tra thủ công còn lại
@@ -437,6 +546,15 @@ Giới hạn còn lại: cần mở bản HTTPS production trên điện thoại
 
 - Kiểm tra một ảnh/meal đại diện qua UI với `LLM_PROVIDER=openai` và `OPENAI_MODEL=gpt-4o-mini`; ghi latency, format và lỗi nếu có.
 - Google Gemini/Gemma chỉ là phương án thay thế, không thuộc demo chính trừ khi có thay đổi quyết định.
+
+### Lưu trữ đa thiết bị (STORAGE_PLAN.md)
+
+- Giai đoạn 0, A và C **đã xong** (2026-08-19) — xem hai mục nhật ký cùng ngày ở mục 7.
+- **Việc người dùng phải làm để cron chạy được:** thêm hai GitHub repo secrets ở Settings → Secrets and variables → Actions: `SUPABASE_URL` và `SUPABASE_PUBLISHABLE_KEY`. Chưa thêm thì workflow chỉ cảnh báo rồi bỏ qua.
+- **Kiểm thử thủ công còn nợ:** bài 4 (liên kết Google giữ `user_id`) **đã pass trên trình duyệt thật** 2026-08-19. Còn bài 2 (F5 giữ đăng nhập), 3 (mở lại từ icon PWA), 5 (redeploy không mất phiên) và 13 (PWA standalone trên iPhone) trong `STORAGE_PLAN.md` mục 12.
+- Bài 2 là bài đáng lo nhất còn lại: nó kiểm chứng cookie refresh-token ghi bằng JS có thực sự sống sót qua reload hay không — tức toàn bộ lý do bản 3 của kế hoạch bỏ `st.login()`.
+- Giai đoạn D: rà 23 chỗ `unsafe_allow_html=True` còn lại (đã xác nhận `pages/3_Ho_so.py`→`utils/ui.py` escape đúng), thêm test XSS chốt hành vi, export JSON dự phòng.
+- `utils/history.append_meal_once()` giờ không còn trang nào gọi (đã thay bằng `SessionRepository.save_meal`), chỉ còn test dùng — cân nhắc bỏ khi dọn dẹp.
 
 ### Phase E - Báo cáo và demo
 

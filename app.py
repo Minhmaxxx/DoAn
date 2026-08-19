@@ -11,6 +11,7 @@ from pathlib import Path
 import streamlit as st
 
 import config
+from utils.auth import bootstrap_session, sync_status
 from utils.state import initialize_session_state
 from utils.navigation import render_app_shell
 from utils.pwa import install_pwa_metadata, render_install_button
@@ -34,6 +35,20 @@ if css_path.exists():
     st.html(css_path)
 
 initialize_session_state()
+
+# Restore a signed-in identity (cookie) or finish a Google link (?code=) before
+# any page runs, so pages see the right repository on their first render. A
+# no-op for guests: it returns before constructing a Supabase client.
+if bootstrap_session() and "meal_history_loaded" not in st.session_state:
+    from utils.repository import hydrate_session
+
+    try:
+        hydrate_session()
+        st.session_state.meal_history_loaded = True
+    except Exception:
+        st.session_state.sync_error = (
+            "Không tải được dữ liệu đã lưu. Bạn vẫn dùng được app trong phiên này."
+        )
 
 # ─── Landing Page ─────────────────────────────────────────────────────────────
 
@@ -105,7 +120,13 @@ def main():
         )
         render_install_button()
 
-    st.caption("Dữ liệu hiện chỉ tồn tại trong phiên này và chưa đồng bộ giữa các thiết bị.")
+    st.caption(
+        {
+            "guest": "Dữ liệu hiện chỉ tồn tại trong phiên này và chưa đồng bộ giữa các thiết bị.",
+            "anonymous": "Dữ liệu đã lưu trên máy chủ nhưng chỉ mở được từ thiết bị này — liên kết Google ở trang Hồ sơ để dùng máy khác.",
+            "linked": "Dữ liệu đã đồng bộ; đăng nhập Google trên thiết bị khác để xem lại.",
+        }[sync_status()]
+    )
 
 
 if __name__ == "__main__":

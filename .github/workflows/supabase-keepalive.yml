@@ -1,0 +1,61 @@
+# This workflow exists only to stop the Supabase free-tier project from being
+# paused after 7 days of inactivity (see STORAGE_PLAN.md section 8). It makes
+# one cheap REST call with the anon key, which counts as project activity.
+#
+# Runs Monday and Thursday rather than weekly on purpose: a 7-day pause
+# threshold with a 7-day cron leaves zero margin, so a single skipped or
+# delayed run would pause the project. Two runs a week caps the gap at 4 days.
+#
+# Do NOT trust this alone before a demo or thesis defense — GitHub itself
+# disables scheduled workflows after 60 days without repo activity, so wake
+# the project manually and verify it beforehand.
+
+name: Supabase keepalive
+
+"on":
+  schedule:
+    - cron: "0 3 * * 1,4"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Supabase REST endpoint
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::warning::Bỏ qua: chưa khai báo secrets SUPABASE_URL / SUPABASE_PUBLISHABLE_KEY."
+            echo "Thêm ở Settings -> Secrets and variables -> Actions."
+            exit 0
+          fi
+
+          # RLS means this returns an empty array for an unauthenticated caller.
+          # That is the intended outcome: a 200 with [] proves the project is
+          # awake and the anon key is valid, without reading anyone's data.
+          status=$(curl --silent --show-error --location \
+            --max-time 30 --retry 3 --retry-delay 10 --retry-all-errors \
+            --output /tmp/keepalive-body.txt \
+            --write-out '%{http_code}' \
+            --header "apikey: $SUPABASE_PUBLISHABLE_KEY" \
+            --header "Authorization: Bearer $SUPABASE_PUBLISHABLE_KEY" \
+            "$SUPABASE_URL/rest/v1/profiles?select=user_id&limit=1")
+
+          echo "HTTP $status"
+          cat /tmp/keepalive-body.txt
+
+          if [ "$status" != "200" ]; then
+            echo "::error::Supabase trả về HTTP $status — project có thể đã bị pause, hoặc key/URL đã đổi."
+            exit 1
+          fi
+          echo "Project còn sống."

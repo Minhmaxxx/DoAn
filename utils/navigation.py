@@ -4,6 +4,16 @@ from __future__ import annotations
 
 import streamlit as st
 
+from utils.auth import sync_status
+
+
+# Wording matters here: "anonymous" means stored server-side but reachable only
+# from this browser, so it must not read as synced (STORAGE_PLAN.md section 4).
+SYNC_NOTE = {
+    "guest": "Dữ liệu hiện lưu trong phiên.",
+    "anonymous": "Đã lưu trên máy chủ, chỉ thiết bị này.",
+    "linked": "Đã đồng bộ giữa các thiết bị.",
+}
 
 NAV_ICONS = {
     "Hôm nay": ":material/home:",
@@ -46,11 +56,11 @@ def render_app_shell(current_page, landing_page, user_pages) -> None:
                     )
 
         st.markdown(
-            """
+            f"""
             <div class="rail-note">
                 <span>12 món Việt</span>
                 <strong>YOLO + HITL</strong>
-                <small>Dữ liệu hiện lưu trong phiên.</small>
+                <small>{SYNC_NOTE[sync_status()]}</small>
             </div>
             """,
             unsafe_allow_html=True,

@@ -21,9 +21,20 @@ from utils.visualization import macro_donut_chart
 from utils.pwa import render_install_button
 from utils.state import initialize_session_state
 from utils.ui import render_page_header, render_section_header
+from utils import auth
+from utils.repository import enable_sync, get_repository
 
 # ─── Init session state ───────────────────────────────────────────────────────
 initialize_session_state()
+
+# The three states from STORAGE_PLAN.md section 4. "anonymous" must never be
+# labelled as synced: the data is on the server but reachable only from this
+# browser's cookie.
+SYNC_META = {
+    "guest": "LƯU TRONG PHIÊN",
+    "anonymous": "LƯU TRÊN MÁY CHỦ",
+    "linked": "ĐÃ ĐỒNG BỘ",
+}
 
 
 def main():
@@ -39,14 +50,19 @@ def main():
             else "openai"
         )
 
+    status = auth.sync_status()
     render_page_header(
         "THÔNG TIN CƠ THỂ",
         "Hồ sơ của bạn.",
         "Các chỉ số này giúp ước tính nhu cầu năng lượng; kết quả chỉ mang tính tham khảo.",
-        meta="LƯU TRONG PHIÊN",
+        meta=SYNC_META[status],
     )
     if profile_saved:
         st.success("Đã lưu hồ sơ.")
+
+    sync_error = st.session_state.pop("sync_error", None)
+    if sync_error:
+        st.warning(sync_error)
 
     profile = st.session_state.user_profile
     with st.container(key="profile-layout"):
@@ -121,7 +137,7 @@ def main():
                 width="stretch",
             )
             if submitted:
-                st.session_state.user_profile = {
+                new_profile = {
                     "name": name.strip(),
                     "age": age,
                     "gender": gender,
@@ -130,10 +146,22 @@ def main():
                     "activity_level": activity_level,
                     "goal": goal,
                 }
-                st.session_state.profile_completed = True
-                st.session_state.llm_advice = None
-                st.session_state.profile_saved = True
-                st.rerun()
+                try:
+                    get_repository().save_profile(new_profile)
+                except Exception as error:
+                    # Never claim "Đã lưu hồ sơ" when the server refused it —
+                    # keep the edit on screen so the user can retry.
+                    st.error(f"Không lưu được hồ sơ lên máy chủ: {error}")
+                else:
+                    # SessionRepository stores into session state directly, but
+                    # SupabaseRepository only writes the database — refresh the
+                    # session copy here so both backends leave the same on-screen
+                    # state after a save.
+                    st.session_state.user_profile = new_profile
+                    st.session_state.profile_completed = True
+                    st.session_state.llm_advice = None
+                    st.session_state.profile_saved = True
+                    st.rerun()
 
     # ── Results ────────────────────────────────────────────────────────────
     with col_results:
@@ -199,9 +227,17 @@ def main():
         )
         st.plotly_chart(fig, width="stretch", config={"displayModeBar": False})
 
-    # ── LLM API Config ─────────────────────────────────────────────────────
+    # ── Cloud sync ─────────────────────────────────────────────────────────
     render_section_header(
         "03",
+        "Đồng bộ và thiết bị",
+        "Mặc định dữ liệu chỉ nằm trong phiên này. Bạn chọn khi nào đưa lên máy chủ.",
+    )
+    _render_sync_section(status)
+
+    # ── LLM API Config ─────────────────────────────────────────────────────
+    render_section_header(
+        "04",
         "Quyền riêng tư và trợ lý AI",
         "Bạn quyết định khi nào dữ liệu hồ sơ và bữa ăn được gửi tới nhà cung cấp AI.",
     )
@@ -276,7 +312,7 @@ def main():
 
     # ── About project ──────────────────────────────────────────────────────
     render_section_header(
-        "04",
+        "05",
         "Cài trên thiết bị",
         "Thêm NutriVision lên màn hình chính để mở như một ứng dụng độc lập.",
     )
@@ -291,6 +327,62 @@ def main():
 
         Kết quả chỉ mang tính tham khảo, không thay thế tư vấn y tế.
         """)
+
+
+def _render_sync_section(status: str):
+    """Render the guest / anonymous / linked controls for cloud sync."""
+    if status == "guest":
+        if not auth.sync_available():
+            st.info(
+                "Bản triển khai này chưa cấu hình đồng bộ. Dữ liệu chỉ tồn tại "
+                "trong phiên và sẽ mất khi đóng trình duyệt."
+            )
+            return
+        st.markdown(
+            "Bật đồng bộ để hồ sơ và lịch sử bữa ăn được lưu trên máy chủ thay vì "
+            "biến mất khi đóng trình duyệt. Không cần đăng ký hay mật khẩu."
+        )
+        st.caption(
+            "Khi bật, hồ sơ và lịch sử bữa ăn hiện có sẽ được tải lên tài khoản của bạn."
+        )
+        if st.button("Bật đồng bộ", type="primary", key="enable_sync"):
+            try:
+                enable_sync()
+            except Exception as error:
+                st.error(f"Không bật được đồng bộ: {error}")
+            else:
+                st.rerun()
+        return
+
+    if status == "anonymous":
+        st.success("Dữ liệu đã được lưu trên máy chủ.")
+        st.warning(
+            "Hiện chỉ **trình duyệt này** mở được dữ liệu đó. Xóa cookie hoặc đổi "
+            "thiết bị là mất. Liên kết Google để dùng trên máy khác."
+        )
+    else:
+        st.success("Đã liên kết Google — đăng nhập trên thiết bị khác để xem dữ liệu.")
+
+    col_link, col_out = st.columns(2)
+    with col_link:
+        if status == "anonymous":
+            try:
+                url = auth.start_google_link(
+                    auth.get_client().auth, auth.site_url()
+                )
+            except Exception as error:
+                st.error(f"Không tạo được liên kết Google: {error}")
+            else:
+                st.link_button("Liên kết Google", url, width="stretch")
+    with col_out:
+        if st.button("Đăng xuất", width="stretch", key="logout"):
+            try:
+                client_auth = auth.get_client().auth
+            except Exception:
+                client_auth = None  # logout must work even if Supabase is down
+            auth.logout(client_auth)
+            st.session_state.pop("meal_history_loaded", None)
+            st.rerun()
 
 
 def _render_bmi_scale(bmi: float):

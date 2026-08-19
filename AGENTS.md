@@ -27,7 +27,9 @@
 
 - The app does not require secrets for local UI work. Without an LLM key it returns sample advice; `.env` supports `GEMINI_API_KEY`, `GOOGLE_MODEL`, `OPENAI_API_KEY`, and `LLM_PROVIDER=google|openai`. Google-hosted Gemini and Gemma models use the same Google GenAI adapter.
 - Production inference uses `models/weights/best_baseline_B.pt` and validates SHA-256 plus the exact 12-label checkpoint contract. Randomized demo detections are disabled unless `ENABLE_RANDOM_DEMO=true` is explicitly set.
-- Meal history is stored only in Streamlit session state. It is cleared when the browser session ends and is never shared through a server-side JSON file.
+- Guest mode is the default and stores the profile and meal history only in Streamlit session state, cleared when the browser session ends. Never persist them to a server-side JSON file.
+- Cloud sync is opt-in: the user presses "Bật đồng bộ" on the profile page, which calls `utils.repository.enable_sync()` to create a Supabase anonymous account and upload existing session data. `link_identity()` then upgrades it to Google without changing `user_id` (verified against the live project). Pages go through `get_repository()` and must not branch on auth state themselves.
+- Nothing may construct a Supabase client just by rendering a page: `tests/test_pages.py` asserts every page stays guest-only, which is what keeps the release gate offline. `utils.auth` functions take `get_client().auth`; repositories take `get_client()`. See `STORAGE_PLAN.md` for the required Supabase settings (Anonymous sign-ins, Manual Linking, Redirect URLs).
 - `datasets/`, `runs/`, and `models/weights/*.pt` are generated or large artifacts and are gitignored.
 
 ## Training
