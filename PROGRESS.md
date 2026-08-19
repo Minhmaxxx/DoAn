@@ -1,7 +1,7 @@
 # NutriVision Progress Record
 
-**Cập nhật:** 2026-08-18<br>
-**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật. Lưu trữ đa thiết bị (`STORAGE_PLAN.md`): Giai đoạn 0, A và C xong 2026-08-19 — đồng bộ Supabase đã nối vào app dưới dạng **opt-in** ("Bật đồng bộ"), chế độ khách vẫn là mặc định; 6 lỗi phát hiện nhờ chạy thật đã vá. Liên kết Google đã kiểm thử trên trình duyệt thật và xác nhận giữ nguyên `user_id`. Còn nợ: bài 2/3/5/13 trong ma trận kiểm thử, và Giai đoạn D (hardening XSS, export JSON).
+**Cập nhật:** 2026-08-19<br>
+**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật. Lưu trữ đa thiết bị (`STORAGE_PLAN.md`): Giai đoạn 0, A và C xong 2026-08-19 — đồng bộ Supabase đã nối vào app dưới dạng **opt-in** ("Bật đồng bộ"), chế độ khách vẫn là mặc định; 6 lỗi phát hiện nhờ chạy thật đã vá. Liên kết Google đã xác minh trên trình duyệt thật là giữ nguyên `user_id`; thử tiếp trên bản deploy thì lộ ra thiếu hẳn đường **đăng nhập** ở thiết bị thứ hai, đã bổ sung `sign_in_with_oauth()`. Còn nợ: kiểm thử thật vế thiết bị thứ hai (bài 4), bài 2/3/5/13, và Giai đoạn D (hardening XSS, export JSON).
 
 Tài liệu này lưu lại các quyết định, kết quả kiểm tra và bằng chứng có thể dùng khi viết báo cáo hoặc tiếp tục phát triển.
 
