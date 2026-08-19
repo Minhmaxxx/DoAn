@@ -53,6 +53,13 @@ if bootstrap_session() and "meal_history_loaded" not in st.session_state:
 # ─── Landing Page ─────────────────────────────────────────────────────────────
 
 def main():
+    # Supabase sends the user back to the Site URL, i.e. here — so an OAuth
+    # failure has to be reported on this page, not only on the profile page
+    # where the flow started.
+    sync_error = st.session_state.pop("sync_error", None)
+    if sync_error:
+        st.warning(sync_error)
+
     with st.container(key="landing-layout"):
         copy, preview = st.columns([1.15, 0.85], gap="large")
         with copy:

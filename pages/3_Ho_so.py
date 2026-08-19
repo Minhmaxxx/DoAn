@@ -3,7 +3,6 @@ pages/3_Ho_so.py — User Profile & Biometric Setup
 Collects user's biometric data and computes health metrics (BMI, BMR, TDEE).
 """
 
-import json
 import sys
 from pathlib import Path
 
@@ -333,11 +332,18 @@ def main():
 def _render_google_signin_button():
     """Sign in with Google to recover an account created on another device.
 
-    Two-step on purpose: the OAuth URL is only built after a click, never
-    during a plain render, so a guest visiting this page still constructs no
-    Supabase client (tests/test_pages.py enforces that). Both a redirect and
-    a visible link are offered because the redirect runs in the parent
-    document and can be blocked.
+    Two-step on purpose, for two separate reasons:
+
+    - The OAuth URL is only built after a click, never during a plain render,
+      so a guest visiting this page still constructs no Supabase client
+      (tests/test_pages.py enforces that).
+    - Building that URL is also what writes the PKCE code_verifier cookie, via
+      JS that the browser only runs once this render reaches it. An automatic
+      redirect in the same run raced that script: navigating away before the
+      cookie was written left exchange_code_for_session() with no verifier, so
+      the user came back from Google and nothing happened. The user clicking
+      the link themselves is what guarantees the cookie landed first — the
+      same shape as the link flow, which worked for exactly that reason.
     """
     if st.button("Đăng nhập bằng Google", key="google_signin"):
         try:
@@ -350,11 +356,7 @@ def _render_google_signin_button():
     url = st.session_state.get("google_signin_url")
     if url:
         st.link_button("Tiếp tục tới Google", url, type="primary", width="stretch")
-        st.caption("Nếu trang không tự chuyển, bấm nút trên.")
-        st.html(
-            f"<script>window.parent.location.href = {json.dumps(url)};</script>",
-            unsafe_allow_javascript=True,
-        )
+        st.caption("Bấm nút trên để sang Google.")
 
 
 def _render_sync_section(status: str):

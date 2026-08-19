@@ -461,15 +461,24 @@ def bootstrap_session() -> Optional[str]:
 
     try:
         client = get_client()
-    except Exception:
+    except Exception as error:
+        if auth_code:
+            # Losing an OAuth return silently is the worst case: the user did
+            # everything right and the app just looks broken.
+            st.session_state["sync_error"] = (
+                f"Không kết nối được Supabase khi quay lại từ Google: {error}"
+            )
         return None
 
     if auth_code:
         try:
             user_id = complete_oauth_callback(client.auth, auth_code)
-        except Exception:
+        except Exception as error:
+            # Report the provider's own message. The common cause is a missing
+            # PKCE code_verifier cookie, and a generic "hãy thử lại" hides that
+            # completely — the user just sees nothing happen.
             st.session_state["sync_error"] = (
-                "Không hoàn tất được liên kết Google. Hãy thử lại từ trang Hồ sơ."
+                f"Không hoàn tất được đăng nhập Google: {type(error).__name__}: {error}"
             )
             return None
         # Drop ?code= so a refresh doesn't retry an already-spent auth code.
