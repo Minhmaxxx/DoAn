@@ -199,7 +199,13 @@ def _session_cookie() -> Optional[str]:
         token = st.context.cookies.get(SESSION_COOKIE_NAME)
     except Exception:
         return None
-    return token if isinstance(token, str) and token else None
+    if not isinstance(token, str) or not token:
+        return None
+    # persist_session() writes the value through encodeURIComponent, so the
+    # browser stores the percent-encoded form and sends that back. Reading it
+    # raw would hand a corrupted token to refresh_session() for any token
+    # containing an escaped character.
+    return urllib.parse.unquote(token)
 
 
 def persist_session(refresh_token: str) -> None:
@@ -268,13 +274,23 @@ def restore_session(client: SupabaseAuthClient) -> Optional[str]:
 
     try:
         response = client.refresh_session(token)
-    except Exception:
+    except Exception as error:
+        # Record why before discarding the cookie. Silently dropping to guest
+        # here is indistinguishable, from the outside, from the cookie never
+        # having been readable at all — which made this failure very hard to
+        # place when it happened on a deployment.
+        st.session_state["sync_error"] = (
+            f"Phiên đăng nhập cũ không dùng được nữa: {type(error).__name__}: {error}"
+        )
         clear_session_cookie()
         return None
 
     session = getattr(response, "session", None)
     user = getattr(response, "user", None)
     if not session or not user:
+        st.session_state["sync_error"] = (
+            "Máy chủ trả về phiên không hợp lệ khi khôi phục đăng nhập."
+        )
         clear_session_cookie()
         return None
 
@@ -413,6 +429,29 @@ def sync_blocker() -> Optional[str]:
 def sync_available() -> bool:
     """True when cloud sync can be attempted. See sync_blocker() for why not."""
     return sync_blocker() is None
+
+
+def cookie_diagnostics() -> dict:
+    """What the server can actually see of the cookies we write.
+
+    Exists because a failed restore looks identical from the UI whether the
+    browser never stored the cookie, or stored it and the server never
+    received it, or received it and Supabase rejected the token. Those need
+    completely different fixes, and guessing between them cost a lot of time.
+    """
+    try:
+        cookies = dict(st.context.cookies)
+    except Exception as error:
+        return {"readable": False, "error": f"{type(error).__name__}: {error}"}
+
+    token = cookies.get(SESSION_COOKIE_NAME)
+    return {
+        "readable": True,
+        "total_cookies": len(cookies),
+        "has_session_cookie": bool(token),
+        "session_cookie_length": len(token) if isinstance(token, str) else 0,
+        "pkce_cookies": [name for name in cookies if name.startswith("nv_pkce_")],
+    }
 
 
 def sync_status() -> str:

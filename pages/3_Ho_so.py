@@ -234,6 +234,7 @@ def main():
         "Mặc định dữ liệu chỉ nằm trong phiên này. Bạn chọn khi nào đưa lên máy chủ.",
     )
     _render_sync_section(status)
+    _render_sync_diagnostics()
 
     # ── LLM API Config ─────────────────────────────────────────────────────
     render_section_header(
@@ -327,6 +328,29 @@ def main():
 
         Kết quả chỉ mang tính tham khảo, không thay thế tư vấn y tế.
         """)
+
+
+def _render_sync_diagnostics():
+    """Show what the server sees of our cookies, for diagnosing lost sessions."""
+    with st.expander("Chẩn đoán đồng bộ"):
+        info = auth.cookie_diagnostics()
+        if not info["readable"]:
+            st.error(f"Không đọc được cookie: {info['error']}")
+            return
+        st.write(
+            {
+                "Trạng thái": auth.sync_status(),
+                "Số cookie máy chủ nhận được": info["total_cookies"],
+                "Thấy cookie phiên (nv_refresh_token)": info["has_session_cookie"],
+                "Độ dài token": info["session_cookie_length"],
+                "Cookie PKCE": info["pkce_cookies"] or "không có",
+            }
+        )
+        st.caption(
+            "Nếu vừa bấm Bật đồng bộ mà tải lại trang vẫn thấy "
+            "`Thấy cookie phiên: False`, nghĩa là trình duyệt có ghi cookie "
+            "nhưng máy chủ không nhận được."
+        )
 
 
 def _render_google_signin_button():

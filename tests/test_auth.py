@@ -498,3 +498,36 @@ def test_start_google_signin_omits_redirect_when_not_configured(fake_st):
 
     _, _, kwargs = client.calls[0]
     assert kwargs["credentials"] == {"provider": "google", "options": {}}
+
+
+def test_session_cookie_is_percent_decoded(fake_st):
+    """persist_session() writes through encodeURIComponent, so the browser
+    returns the encoded form. Reading it raw handed a corrupted token to
+    refresh_session() for any token containing an escaped character."""
+    fake_st.context.cookies[auth.SESSION_COOKIE_NAME] = "abc%2Fdef%2Bghi%3D"
+    assert auth._session_cookie() == "abc/def+ghi="
+
+
+def test_restore_session_records_why_it_gave_up(fake_st):
+    """Dropping to guest silently is indistinguishable from never having had
+    a cookie, which is what made this failure so hard to place on a live
+    deployment."""
+    fake_st.context.cookies[auth.SESSION_COOKIE_NAME] = "rt-bad"
+    client = FakeAuthClient()
+    client.refresh_session_raises = RuntimeError("refresh token not found")
+
+    assert auth.restore_session(client) is None
+    assert "refresh token not found" in fake_st.session_state["sync_error"]
+
+
+def test_cookie_diagnostics_reports_what_the_server_received(fake_st):
+    fake_st.context.cookies.update(
+        {auth.SESSION_COOKIE_NAME: "abcd", "nv_pkce_x": "v", "other": "1"}
+    )
+    info = auth.cookie_diagnostics()
+
+    assert info["readable"] is True
+    assert info["has_session_cookie"] is True
+    assert info["session_cookie_length"] == 4
+    assert info["pkce_cookies"] == ["nv_pkce_x"]
+    assert info["total_cookies"] == 3
