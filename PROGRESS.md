@@ -535,6 +535,18 @@ Ghi nhận sai sót trong quá trình: các script spike có đoạn dọn dữ 
 
 Còn nợ trong ma trận mục 12: bài 2 (F5 giữ đăng nhập), 3 (mở lại từ icon PWA), 5 (redeploy không mất phiên), 13 (PWA standalone trên iPhone).
 
+### 2026-08-19 - Lỗ hổng chức năng: thiếu đường đăng nhập trên thiết bị thứ hai
+
+**Triệu chứng:** sau khi deploy, thử trên bản production bằng đúng tài khoản Google đã liên kết ở local thì thấy app trống trơn, tưởng mất hết dữ liệu.
+
+**Nguyên nhân:** Giai đoạn C chỉ cài `start_google_link()` (dùng `link_identity()`), tức chỉ gắn Google vào tài khoản mà trình duyệt **đang** đăng nhập. Production là domain khác nên không có cookie → người dùng là khách. Bấm "Bật đồng bộ" ở đó tạo một tài khoản ẩn danh **mới, rỗng**, và liên kết Google sau đó chỉ có thể thất bại vì identity đó đã thuộc tài khoản của máy trước. Không có đường nào để *đăng nhập* vào tài khoản đã tồn tại — đúng chức năng mà cả tính năng sinh ra để phục vụ. Dữ liệu cũ không mất, vẫn nằm ở tài khoản ban đầu.
+
+**Sửa:** thêm `start_google_signin()` dùng `sign_in_with_oauth()` — không cần phiên sẵn có và trả về đúng tài khoản mà identity Google đang thuộc về. Mục đồng bộ ở trạng thái khách giờ trình bày hai lựa chọn tách bạch: "Bật đồng bộ" (tài khoản mới) và "Đăng nhập bằng Google" (lấy lại tài khoản cũ). Trạng thái ẩn danh cảnh báo rằng liên kết lần hai sẽ lỗi và chỉ sang đăng xuất + đăng nhập.
+
+URL OAuth chỉ được tạo sau khi bấm nút, không tạo lúc render, nên khách vẫn không dựng Supabase client và bài test chốt trong `tests/test_pages.py` vẫn đúng. Đã xác minh trên project thật: URL trỏ `/auth/v1/authorize`, có PKCE `s256`, nên cookie `code_verifier` sẵn có phủ luôn luồng này.
+
+Bài học rút ra: bài 4 của ma trận mục 12 được đánh dấu pass quá sớm. Nó đòi "ẩn danh trên máy A, liên kết Google, **đăng nhập trên máy B**", nhưng phần kiểm thử chỉ chạy hết vế đầu trên cùng một trình duyệt. Vế "máy B" mới là vế phát hiện ra lỗ hổng. Bài 4 giờ tính là **chưa pass** cho tới khi thử thật trên thiết bị/trình duyệt thứ hai.
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
 ### Phase C5 - Kiểm tra thủ công còn lại
@@ -551,7 +563,7 @@ Còn nợ trong ma trận mục 12: bài 2 (F5 giữ đăng nhập), 3 (mở l�
 
 - Giai đoạn 0, A và C **đã xong** (2026-08-19) — xem hai mục nhật ký cùng ngày ở mục 7.
 - **Việc người dùng phải làm để cron chạy được:** thêm hai GitHub repo secrets ở Settings → Secrets and variables → Actions: `SUPABASE_URL` và `SUPABASE_PUBLISHABLE_KEY`. Chưa thêm thì workflow chỉ cảnh báo rồi bỏ qua.
-- **Kiểm thử thủ công còn nợ:** bài 4 (liên kết Google giữ `user_id`) **đã pass trên trình duyệt thật** 2026-08-19. Còn bài 2 (F5 giữ đăng nhập), 3 (mở lại từ icon PWA), 5 (redeploy không mất phiên) và 13 (PWA standalone trên iPhone) trong `STORAGE_PLAN.md` mục 12.
+- **Kiểm thử thủ công còn nợ:** bài 4 mới xong **vế đầu** (liên kết Google giữ nguyên `user_id`, xác minh bằng SQL). Vế quyết định — đăng nhập lại trên **thiết bị thứ hai** và thấy đủ dữ liệu cũ — vẫn chưa chạy; chính vế này đã lộ ra lỗ hổng thiếu `sign_in_with_oauth()`. Còn bài 2 (F5 giữ đăng nhập), 3 (mở lại từ icon PWA), 5 (redeploy không mất phiên) và 13 (PWA standalone trên iPhone).
 - Bài 2 là bài đáng lo nhất còn lại: nó kiểm chứng cookie refresh-token ghi bằng JS có thực sự sống sót qua reload hay không — tức toàn bộ lý do bản 3 của kế hoạch bỏ `st.login()`.
 - Giai đoạn D: rà 23 chỗ `unsafe_allow_html=True` còn lại (đã xác nhận `pages/3_Ho_so.py`→`utils/ui.py` escape đúng), thêm test XSS chốt hành vi, export JSON dự phòng.
 - `utils/history.append_meal_once()` giờ không còn trang nào gọi (đã thay bằng `SessionRepository.save_meal`), chỉ còn test dùng — cân nhắc bỏ khi dọn dẹp.
