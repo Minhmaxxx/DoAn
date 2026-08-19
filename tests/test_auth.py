@@ -4,11 +4,11 @@ Every Supabase-facing function in utils.auth takes the client as a parameter
 (see that module's docstring), so a fake client stands in here the same way
 tests/test_llm.py fakes the Google/OpenAI SDK objects. `st` itself is faked
 too: st.session_state needs both dict- and attribute-style access (utils.auth
-uses both), and st.context.cookies has no public write API to seed from a
-test, so a real Streamlit session can't carry a cookie into restore_session().
+uses both). Cookies are faked through FakeCookieStore rather than
+st.context.cookies, because utils.auth now goes through utils.cookies — see
+that module for why st.context.cookies is unusable on Streamlit Cloud.
 """
 
-import urllib.parse
 from types import SimpleNamespace
 
 import pytest
@@ -87,10 +87,45 @@ class FakeAuthClient:
         self.calls.append(("sign_out", (), {}))
 
 
+class FakeCookieStore:
+    """In-memory stand-in for utils.cookies.
+
+    Mirrors the real contract that matters here: `cookies_ready()` is False
+    until the browser has reported, which utils.auth must treat as "unknown"
+    rather than "no session".
+    """
+
+    def __init__(self, initial=None, ready=True):
+        self.store = dict(initial or {})
+        self.ready = ready
+
+    def cookies_ready(self) -> bool:
+        return self.ready
+
+    def all_cookies(self) -> dict:
+        return dict(self.store)
+
+    def read_cookie(self, name):
+        value = self.store.get(name)
+        return value if isinstance(value, str) and value else None
+
+    def write_cookie(self, name, value, *, max_age_days):
+        self.store[name] = value
+        return True
+
+    def delete_cookie(self, name):
+        self.store.pop(name, None)
+
+
 @pytest.fixture
 def fake_st(monkeypatch):
     instance = FakeStreamlit()
     monkeypatch.setattr(auth, "st", instance)
+    # Default: the browser has answered and holds one unrelated cookie, so
+    # cookies_ready() is True and tests exercise the post-handshake path.
+    store = FakeCookieStore({"other": "1"})
+    monkeypatch.setattr(auth, "cookies", store)
+    instance.cookie_store = store
     return instance
 
 
@@ -110,7 +145,7 @@ def test_ensure_account_creates_once_and_persists_cookie(fake_st):
     assert user_id == "anon-1"
     assert auth.current_user_id() == "anon-1"
     assert auth.is_linked() is False
-    assert any("rt-1" in call for call in fake_st.html_calls)
+    assert fake_st.cookie_store.store[auth.SESSION_COOKIE_NAME] == "rt-1"
 
 
 def test_ensure_account_is_idempotent_within_a_session(fake_st):
@@ -141,7 +176,7 @@ def test_restore_session_short_circuits_when_already_signed_in(fake_st):
 
 
 def test_restore_session_rebuilds_identity_from_cookie(fake_st):
-    fake_st.context.cookies[auth.SESSION_COOKIE_NAME] = "rt-old"
+    fake_st.cookie_store.store[auth.SESSION_COOKIE_NAME] = "rt-old"
     client = FakeAuthClient()
     client.refresh_session_result = SimpleNamespace(
         session=SimpleNamespace(refresh_token="rt-new"),
@@ -153,26 +188,26 @@ def test_restore_session_rebuilds_identity_from_cookie(fake_st):
     assert user_id == "anon-1"
     assert auth.is_linked() is False
     assert client.calls == [("refresh_session", ("rt-old",), {})]
-    assert any("rt-new" in call for call in fake_st.html_calls)
+    assert fake_st.cookie_store.store[auth.SESSION_COOKIE_NAME] == "rt-new"
 
 
 def test_restore_session_clears_cookie_when_refresh_rejected(fake_st):
-    fake_st.context.cookies[auth.SESSION_COOKIE_NAME] = "rt-bad"
+    fake_st.cookie_store.store[auth.SESSION_COOKIE_NAME] = "rt-bad"
     client = FakeAuthClient()
     client.refresh_session_raises = RuntimeError("invalid refresh token")
 
     assert auth.restore_session(client) is None
     assert auth.current_user_id() is None
-    assert any("1970" in call for call in fake_st.html_calls)  # cookie deletion
+    assert auth.SESSION_COOKIE_NAME not in fake_st.cookie_store.store
 
 
 def test_restore_session_clears_cookie_when_response_is_incomplete(fake_st):
-    fake_st.context.cookies[auth.SESSION_COOKIE_NAME] = "rt-weird"
+    fake_st.cookie_store.store[auth.SESSION_COOKIE_NAME] = "rt-weird"
     client = FakeAuthClient()
     client.refresh_session_result = SimpleNamespace(session=None, user=None)
 
     assert auth.restore_session(client) is None
-    assert any("1970" in call for call in fake_st.html_calls)
+    assert auth.SESSION_COOKIE_NAME not in fake_st.cookie_store.store
 
 
 def test_start_google_link_returns_redirect_url_and_forwards_provider(fake_st):
@@ -242,7 +277,7 @@ def test_logout_clears_cookie_and_all_personal_session_state(fake_st):
         assert key not in fake_st.session_state
     assert fake_st.session_state["assistant_enabled"] is True
     assert ("sign_out", (), {}) in client.calls
-    assert any("1970" in call for call in fake_st.html_calls)
+    assert auth.SESSION_COOKIE_NAME not in fake_st.cookie_store.store
 
 
 def test_logout_tolerates_no_client_and_a_failed_sign_out(fake_st):
@@ -308,19 +343,14 @@ def test_get_client_caches_one_client_per_session(monkeypatch, fake_st):
 
 
 def test_code_verifier_storage_round_trips_through_cookie(fake_st):
-    """set_item() writes a cookie via JS; get_item() reads it back on a LATER
-    script run — simulated here by manually seeding fake_st.context.cookies,
-    since a real browser round trip can't happen inside a unit test."""
+    """The verifier written before redirecting to Google must be readable
+    again on the separate script run that handles the callback."""
     storage = auth._CodeVerifierCookieStorage()
     key = "supabase.auth.token-code-verifier"
 
     storage.set_item(key, "verifier-with-special/chars+here")
-    written_script = fake_st.html_calls[-1]
-    assert f"nv_pkce_{key}" in written_script
 
-    fake_st.context.cookies[f"nv_pkce_{key}"] = urllib.parse.quote(
-        "verifier-with-special/chars+here"
-    )
+    assert f"nv_pkce_{key}" in fake_st.cookie_store.store
     assert storage.get_item(key) == "verifier-with-special/chars+here"
 
 
@@ -328,13 +358,14 @@ def test_code_verifier_storage_get_item_missing_returns_none(fake_st):
     assert auth._CodeVerifierCookieStorage().get_item("nope") is None
 
 
-def test_code_verifier_storage_remove_item_expires_the_cookie(fake_st):
+def test_code_verifier_storage_remove_item_deletes_the_cookie(fake_st):
     storage = auth._CodeVerifierCookieStorage()
-    storage.remove_item("supabase.auth.token-code-verifier")
-    assert any(
-        "1970" in call and "nv_pkce_supabase.auth.token-code-verifier" in call
-        for call in fake_st.html_calls
-    )
+    key = "supabase.auth.token-code-verifier"
+    storage.set_item(key, "v")
+
+    storage.remove_item(key)
+
+    assert f"nv_pkce_{key}" not in fake_st.cookie_store.store
 
 
 # ── bootstrap_session / sync_status ──────────────────────────────────────────
@@ -359,7 +390,7 @@ def test_bootstrap_session_reuses_an_already_restored_identity(fake_st):
 
 
 def test_bootstrap_session_restores_from_cookie(monkeypatch, fake_st):
-    fake_st.context.cookies[auth.SESSION_COOKIE_NAME] = "rt-1"
+    fake_st.cookie_store.store[auth.SESSION_COOKIE_NAME] = "rt-1"
     client = FakeAuthClient()
     client.refresh_session_result = SimpleNamespace(
         user=SimpleNamespace(id="anon-7", is_anonymous=True),
@@ -391,7 +422,7 @@ def test_bootstrap_session_downgrades_to_guest_when_supabase_is_unreachable(
 ):
     """A paused project or revoked token must not make the app unopenable —
     detection and nutrition still work without an account."""
-    fake_st.context.cookies[auth.SESSION_COOKIE_NAME] = "rt-1"
+    fake_st.cookie_store.store[auth.SESSION_COOKIE_NAME] = "rt-1"
     monkeypatch.setattr(
         auth, "get_client", lambda: (_ for _ in ()).throw(RuntimeError("down"))
     )
@@ -500,19 +531,20 @@ def test_start_google_signin_omits_redirect_when_not_configured(fake_st):
     assert kwargs["credentials"] == {"provider": "google", "options": {}}
 
 
-def test_session_cookie_is_percent_decoded(fake_st):
-    """persist_session() writes through encodeURIComponent, so the browser
-    returns the encoded form. Reading it raw handed a corrupted token to
-    refresh_session() for any token containing an escaped character."""
-    fake_st.context.cookies[auth.SESSION_COOKIE_NAME] = "abc%2Fdef%2Bghi%3D"
-    assert auth._session_cookie() == "abc/def+ghi="
+def test_session_cookie_round_trips_verbatim(fake_st):
+    """The cookie component carries the value as-is. An earlier JS
+    implementation percent-encoded on write and forgot to decode on read,
+    corrupting any token containing an escaped character."""
+    token = "abc/def+ghi="
+    auth.persist_session(token)
+    assert auth._session_cookie() == token
 
 
 def test_restore_session_records_why_it_gave_up(fake_st):
     """Dropping to guest silently is indistinguishable from never having had
     a cookie, which is what made this failure so hard to place on a live
     deployment."""
-    fake_st.context.cookies[auth.SESSION_COOKIE_NAME] = "rt-bad"
+    fake_st.cookie_store.store[auth.SESSION_COOKIE_NAME] = "rt-bad"
     client = FakeAuthClient()
     client.refresh_session_raises = RuntimeError("refresh token not found")
 
@@ -520,14 +552,30 @@ def test_restore_session_records_why_it_gave_up(fake_st):
     assert "refresh token not found" in fake_st.session_state["sync_error"]
 
 
-def test_cookie_diagnostics_reports_what_the_server_received(fake_st):
-    fake_st.context.cookies.update(
-        {auth.SESSION_COOKIE_NAME: "abcd", "nv_pkce_x": "v", "other": "1"}
+def test_cookie_diagnostics_reports_what_the_browser_returned(fake_st):
+    fake_st.cookie_store.store.update(
+        {auth.SESSION_COOKIE_NAME: "abcd", "nv_pkce_x": "v"}
     )
     info = auth.cookie_diagnostics()
 
     assert info["readable"] is True
+    assert info["component_ready"] is True
     assert info["has_session_cookie"] is True
     assert info["session_cookie_length"] == 4
     assert info["pkce_cookies"] == ["nv_pkce_x"]
-    assert info["total_cookies"] == 3
+    assert info["total_cookies"] == 3  # plus the "other" cookie from the fixture
+
+
+def test_bootstrap_session_waits_for_the_cookie_component(monkeypatch, fake_st):
+    """Before the browser answers, "no cookie" and "not asked yet" are
+    indistinguishable. Treating the second as the first signs the user out on
+    every page load, so bootstrap must do nothing at all until it knows."""
+    fake_st.cookie_store.ready = False
+    fake_st.cookie_store.store[auth.SESSION_COOKIE_NAME] = "rt-1"
+    monkeypatch.setattr(
+        auth,
+        "get_client",
+        lambda: pytest.fail("bootstrap acted before the browser reported cookies"),
+    )
+
+    assert auth.bootstrap_session() is None

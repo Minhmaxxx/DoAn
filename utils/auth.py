@@ -20,10 +20,11 @@ shape:
 
 from __future__ import annotations
 
-import urllib.parse
 from typing import Any, Optional, Protocol, runtime_checkable
 
 import streamlit as st
+
+from utils import cookies
 
 SESSION_COOKIE_NAME = "nv_refresh_token"
 COOKIE_MAX_AGE_DAYS = 180
@@ -63,43 +64,21 @@ class _CodeVerifierCookieStorage:
     """
 
     _PREFIX = "nv_pkce_"
-    _MAX_AGE_SECONDS = 600  # verifiers are single-use; an OAuth redirect takes seconds, not hours
+    # Verifiers are single-use and an OAuth redirect takes seconds, but the
+    # cookie component only accepts whole days, so this is the smallest value
+    # it can express rather than the smallest that would do.
+    _MAX_AGE_DAYS = 1
 
     def get_item(self, key: str) -> Optional[str]:
-        try:
-            raw = st.context.cookies.get(self._PREFIX + key)
-        except Exception:
-            return None
-        # Same reason as _session_cookie(): only a real string is a value here.
-        if not isinstance(raw, str) or not raw:
-            return None
-        return urllib.parse.unquote(raw)
+        return cookies.read_cookie(self._PREFIX + key)
 
     def set_item(self, key: str, value: str) -> None:
-        st.html(
-            f"""
-            <script>
-            (() => {{
-              const expires = new Date(Date.now() + {self._MAX_AGE_SECONDS} * 1000).toUTCString();
-              window.parent.document.cookie =
-                "{self._PREFIX}{key}=" + encodeURIComponent("{value}") +
-                "; expires=" + expires + "; path=/; SameSite=Lax; Secure";
-            }})();
-            </script>
-            """,
-            unsafe_allow_javascript=True,
+        cookies.write_cookie(
+            self._PREFIX + key, value, max_age_days=self._MAX_AGE_DAYS
         )
 
     def remove_item(self, key: str) -> None:
-        st.html(
-            f"""
-            <script>
-            window.parent.document.cookie =
-              "{self._PREFIX}{key}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax; Secure";
-            </script>
-            """,
-            unsafe_allow_javascript=True,
-        )
+        cookies.delete_cookie(self._PREFIX + key)
 
 
 def get_client():
@@ -178,64 +157,27 @@ def _clear_current_user() -> None:
 
 
 # ─── Cookie persistence ──────────────────────────────────────────────────────
-# st.context.cookies is read-only in Streamlit 1.61 (runtime/context.py), so
-# writing has to go through JS on the parent document, the same pattern
-# utils/pwa.py uses for manifest metadata. This means the refresh token is not
-# HttpOnly and any XSS becomes account takeover; see STORAGE_PLAN.md section 9
-# for the mitigations that are load-bearing alongside this module.
+# Cookies go through utils/cookies.py, not st.context.cookies, because the
+# latter is always empty on Streamlit Community Cloud — see that module's
+# docstring. The refresh token is therefore not HttpOnly and any XSS becomes
+# account takeover; see STORAGE_PLAN.md section 9 for the mitigations that are
+# load-bearing alongside this module.
 
 def _session_cookie() -> Optional[str]:
-    """Read the refresh-token cookie, or None when there isn't a usable one.
-
-    Insists on a non-empty `str` rather than trusting truthiness. Under
-    streamlit.testing's AppTest, `st.context.cookies.get(...)` returns a
-    MagicMock — truthy, but not a token — which previously made the guest
-    path believe it had a session, build a Supabase client and try to refresh
-    with a mock object. That broke the promise that the release gate makes no
-    network calls, and it would equally mishandle any non-string a future
-    Streamlit version returned here.
-    """
-    try:
-        token = st.context.cookies.get(SESSION_COOKIE_NAME)
-    except Exception:
-        return None
-    if not isinstance(token, str) or not token:
-        return None
-    # persist_session() writes the value through encodeURIComponent, so the
-    # browser stores the percent-encoded form and sends that back. Reading it
-    # raw would hand a corrupted token to refresh_session() for any token
-    # containing an escaped character.
-    return urllib.parse.unquote(token)
+    """Read the refresh-token cookie, or None when there isn't a usable one."""
+    return cookies.read_cookie(SESSION_COOKIE_NAME)
 
 
 def persist_session(refresh_token: str) -> None:
     """Write the refresh token to a browser cookie so it survives a reload."""
-    st.html(
-        f"""
-        <script>
-        (() => {{
-          const expires = new Date(Date.now() + {COOKIE_MAX_AGE_DAYS} * 864e5).toUTCString();
-          window.parent.document.cookie =
-            "{SESSION_COOKIE_NAME}=" + encodeURIComponent("{refresh_token}") +
-            "; expires=" + expires + "; path=/; SameSite=Lax; Secure";
-        }})();
-        </script>
-        """,
-        unsafe_allow_javascript=True,
+    cookies.write_cookie(
+        SESSION_COOKIE_NAME, refresh_token, max_age_days=COOKIE_MAX_AGE_DAYS
     )
 
 
 def clear_session_cookie() -> None:
     """Delete the persisted cookie (logout, or a rejected refresh token)."""
-    st.html(
-        f"""
-        <script>
-        window.parent.document.cookie =
-          "{SESSION_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax; Secure";
-        </script>
-        """,
-        unsafe_allow_javascript=True,
-    )
+    cookies.delete_cookie(SESSION_COOKIE_NAME)
 
 
 # ─── Account lifecycle ───────────────────────────────────────────────────────
@@ -439,18 +381,24 @@ def cookie_diagnostics() -> dict:
     received it, or received it and Supabase rejected the token. Those need
     completely different fixes, and guessing between them cost a lot of time.
     """
+    seen = cookies.all_cookies()
+    token = _session_cookie()
     try:
-        cookies = dict(st.context.cookies)
-    except Exception as error:
-        return {"readable": False, "error": f"{type(error).__name__}: {error}"}
+        via_context = len(dict(st.context.cookies))
+    except Exception:
+        via_context = -1
 
-    token = cookies.get(SESSION_COOKIE_NAME)
     return {
         "readable": True,
-        "total_cookies": len(cookies),
+        "component_ready": cookies.cookies_ready(),
+        "total_cookies": len(seen),
         "has_session_cookie": bool(token),
         "session_cookie_length": len(token) if isinstance(token, str) else 0,
-        "pkce_cookies": [name for name in cookies if name.startswith("nv_pkce_")],
+        "pkce_cookies": [name for name in seen if name.startswith("nv_pkce_")],
+        # Kept for contrast: this path reads 0 on Streamlit Community Cloud
+        # and non-zero locally, which is the whole reason utils/cookies.py
+        # exists.
+        "via_st_context": via_context,
     }
 
 
@@ -494,6 +442,14 @@ def bootstrap_session() -> Optional[str]:
     auth_code = st.query_params.get("code")
     if not isinstance(auth_code, str) or not auth_code:
         auth_code = None
+
+    if not cookies.cookies_ready():
+        # The cookie component hasn't reported yet, so "no session cookie" and
+        # "not asked yet" are indistinguishable right now. Concluding guest
+        # here would sign the user out on every single page load, and would
+        # also throw away the PKCE verifier mid-OAuth. Streamlit reruns this
+        # script as soon as the component answers.
+        return None
 
     if not auth_code and not _session_cookie():
         return None

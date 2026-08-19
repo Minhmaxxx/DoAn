@@ -30,6 +30,7 @@
 - Guest mode is the default and stores the profile and meal history only in Streamlit session state, cleared when the browser session ends. Never persist them to a server-side JSON file.
 - Cloud sync is opt-in: the user presses "Bật đồng bộ" on the profile page, which calls `utils.repository.enable_sync()` to create a Supabase anonymous account and upload existing session data. `link_identity()` then upgrades it to Google without changing `user_id` (verified against the live project). Pages go through `get_repository()` and must not branch on auth state themselves.
 - Nothing may construct a Supabase client just by rendering a page: `tests/test_pages.py` asserts every page stays guest-only, which is what keeps the release gate offline. `utils.auth` functions take `get_client().auth`; repositories take `get_client()`. See `STORAGE_PLAN.md` for the required Supabase settings (Anonymous sign-ins, Manual Linking, Redirect URLs).
+- Never read cookies through `st.context.cookies`: it is always empty on Streamlit Community Cloud, which silently broke every persisted session. Go through `utils/cookies.py`, and treat `cookies_ready() == False` as "unknown", never as "no session" — `app.py` renders the cookie component once per run before anything reads it.
 - `datasets/`, `runs/`, and `models/weights/*.pt` are generated or large artifacts and are gitignored.
 
 ## Training

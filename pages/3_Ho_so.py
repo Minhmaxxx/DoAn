@@ -340,16 +340,18 @@ def _render_sync_diagnostics():
         st.write(
             {
                 "Trạng thái": auth.sync_status(),
-                "Số cookie máy chủ nhận được": info["total_cookies"],
+                "Component đã trả lời": info["component_ready"],
+                "Số cookie đọc được": info["total_cookies"],
                 "Thấy cookie phiên (nv_refresh_token)": info["has_session_cookie"],
                 "Độ dài token": info["session_cookie_length"],
                 "Cookie PKCE": info["pkce_cookies"] or "không có",
+                "Qua st.context (luôn 0 trên Cloud)": info["via_st_context"],
             }
         )
         st.caption(
-            "Nếu vừa bấm Bật đồng bộ mà tải lại trang vẫn thấy "
-            "`Thấy cookie phiên: False`, nghĩa là trình duyệt có ghi cookie "
-            "nhưng máy chủ không nhận được."
+            "`Component đã trả lời: False` chỉ là trạng thái thoáng qua khi vừa "
+            "tải trang. Nếu nó vẫn False sau vài giây thì component cookie không "
+            "chạy được."
         )
 
 

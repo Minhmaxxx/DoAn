@@ -36,6 +36,25 @@ Nên refresh token của Supabase phải được ghi bằng JavaScript vào
 `document.cookie`, rồi đọc lại qua `st.context.cookies`. Codebase đã có sẵn
 pattern JS trên parent document trong `utils/pwa.py`.
 
+> **Đã sai và đã sửa (2026-08-19).** Vế "đọc lại qua `st.context.cookies`"
+> **không dùng được trên Streamlit Community Cloud**: nền tảng không chuyển
+> cookie của request tới app, nên `st.context.cookies` luôn rỗng khi deploy dù
+> chạy tốt ở local. Đo thực tế trên production: trình duyệt có cookie, phía
+> Python nhận về 0 cookie. Hệ quả là F5 mất phiên và đăng nhập Google hỏng.
+>
+> Cách làm hiện tại: `utils/cookies.py` bọc một Streamlit component
+> (`extra-streamlit-components`) đọc `document.cookie` trong trình duyệt rồi
+> trả giá trị qua **kênh component**, không đi qua HTTP header nên không bị
+> nền tảng bóc. Hai điểm bắt buộc phải đúng: component cần **một vòng rerun**
+> mới trả được cookie (phải phân biệt "chưa trả lời" với "không có cookie",
+> nếu nhầm sẽ đăng xuất người dùng ở mỗi lần tải trang), và cookie phải đặt
+> `SameSite=Lax` chứ không phải `Strict` mặc định của component — lượt quay về
+> từ Google là điều hướng cross-site, đúng lúc `Strict` bị chặn.
+>
+> Bài học cho báo cáo: giả định rủi ro nhất của kế hoạch phải được kiểm chứng
+> **trên đúng môi trường triển khai** trước khi xây tiếp. Local chạy tốt chính
+> là thứ đã che giấu vấn đề này suốt cả Giai đoạn C.
+
 Hệ quả bảo mật phải chấp nhận: cookie ghi bằng JS **không thể đặt HttpOnly**.
 Đây là cách hoạt động tiêu chuẩn của mọi app dùng supabase-js (mặc định còn lưu
 localStorage, kém an toàn hơn), nhưng nó nâng mức nghiêm trọng của bất kỳ lỗ XSS

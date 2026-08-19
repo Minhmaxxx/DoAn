@@ -535,6 +535,44 @@ Ghi nhận sai sót trong quá trình: các script spike có đoạn dọn dữ 
 
 Còn nợ trong ma trận mục 12: bài 2 (F5 giữ đăng nhập), 3 (mở lại từ icon PWA), 5 (redeploy không mất phiên), 13 (PWA standalone trên iPhone).
 
+### 2026-08-19 - Chặn lớn: Streamlit Community Cloud không chuyển cookie tới app
+
+**Triệu chứng:** trên bản deploy, F5 làm mất sạch hồ sơ vừa lưu; đăng nhập Google trả về lỗi `AuthApiError: invalid request: both auth code and code verifier should be non-empty`.
+
+**Đo đạc:** thêm hàm `cookie_diagnostics()` và khung "Chẩn đoán đồng bộ" ở trang Hồ sơ. Kết quả trên production, cả trước lẫn sau F5:
+
+```
+Số cookie máy chủ nhận được: 0
+Thấy cookie phiên (nv_refresh_token): false
+Cookie PKCE: không có
+```
+
+Trong khi đó DevTools của trình duyệt **có** cookie `nv_refresh_token`. Tức là JavaScript ghi cookie thành công, nhưng `st.context.cookies` phía Python luôn rỗng.
+
+**Kết luận:** đây là giới hạn đã biết của Streamlit Community Cloud — `st.context.cookies` hoạt động ở local nhưng trả về dict rỗng khi deploy lên Cloud (nhiều báo cáo trên diễn đàn Streamlit). Không phải lỗi lập trình, mà là giả định nền tảng sai.
+
+**Hệ quả:** toàn bộ cơ chế giữ phiên của bản 3 `STORAGE_PLAN.md` dựa trên cookie đọc qua `st.context.cookies` nên **không dùng được trên production**. Cả refresh token lẫn `code_verifier` PKCE đều đi qua đường này. Đăng nhập Google thất bại chỉ là triệu chứng của cùng một nguyên nhân.
+
+**Sai lầm quy trình cần ghi nhận cho báo cáo:** mục 2 của `STORAGE_PLAN.md` xác định "giữ phiên" là *vấn đề cốt lõi* của cả kế hoạch, và ma trận kiểm thử mục 12 đặt bài 2 (F5 giữ đăng nhập) ngay gần đầu. Nhưng Giai đoạn C được xây trọn vẹn trên giả định cookie hoạt động, còn bài 2 thì để lại làm sau cùng. Giả định rủi ro nhất phải được kiểm chứng trên **đúng môi trường triển khai** trước khi xây tiếp, không phải chỉ ở local — local chạy tốt chính là thứ đã che giấu vấn đề này.
+
+Những phần **không** bị ảnh hưởng và giữ nguyên được: `storage_schema.sql`, RLS, `utils/repository.py`, luồng đồng bộ, `enable_sync()`, và chế độ khách (vẫn chạy bình thường trên production). Chỉ tầng vận chuyển token cần thay.
+
+**Cách sửa đã chọn** (người dùng chốt phương án "đổi sang cookie component"): thêm `utils/cookies.py` bọc `extra-streamlit-components.CookieManager`. Component này đọc `document.cookie` trong trình duyệt rồi trả về qua **kênh component**, không đi qua HTTP header nên nền tảng không bóc được. `utils/auth.py` bỏ toàn bộ `st.html` ghi cookie và `st.context.cookies`, chuyển sang gọi module này; `app.py` render component đúng một lần mỗi vòng chạy, trước khi bất cứ chỗ nào đọc cookie.
+
+Hai chi tiết bắt buộc đúng, đều đã cài và có test chốt:
+
+1. Component chỉ trả cookie **sau một vòng rerun**. `cookies_ready()` phân biệt "chưa trả lời" với "không có cookie"; nếu coi hai cái là một thì app sẽ đăng xuất người dùng ở **mỗi lần tải trang**. `bootstrap_session()` không làm gì cho tới khi biết chắc.
+2. Cookie đặt `SameSite=Lax`, không dùng `Strict` mặc định của component — lượt quay về từ Google là điều hướng cross-site, đúng lúc `Strict` bị trình duyệt giữ lại.
+
+Đồng thời bỏ luôn lỗi mã hoá cũ: cơ chế JS ghi qua `encodeURIComponent` mà đọc lại không giải mã; component truyền giá trị nguyên vẹn nên vấn đề đó biến mất.
+
+| Lệnh/kiểm tra | Kết quả |
+|---|---|
+| `.venv311\Scripts\python.exe -m pytest -q` | `141 passed, 1 skipped` |
+| AppTest 5 trang ở chế độ khách | Không exception, không trang nào dựng Supabase client |
+
+Chưa xác minh trên production — cần deploy rồi chạy lại bài 2 (F5) và bài 4 (đăng nhập ở thiết bị khác).
+
 ### 2026-08-19 - Lỗ hổng chức năng: thiếu đường đăng nhập trên thiết bị thứ hai
 
 **Triệu chứng:** sau khi deploy, thử trên bản production bằng đúng tài khoản Google đã liên kết ở local thì thấy app trống trơn, tưởng mất hết dữ liệu.

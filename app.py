@@ -12,6 +12,7 @@ import streamlit as st
 
 import config
 from utils.auth import bootstrap_session, sync_status
+from utils.cookies import init_cookie_manager
 from utils.state import initialize_session_state
 from utils.navigation import render_app_shell
 from utils.pwa import install_pwa_metadata, render_install_button
@@ -35,6 +36,11 @@ if css_path.exists():
     st.html(css_path)
 
 initialize_session_state()
+
+# Render the cookie component before anything reads a cookie. It has to happen
+# on every run and exactly once per run, which is why it lives here in the
+# router rather than in the pages.
+init_cookie_manager()
 
 # Restore a signed-in identity (cookie) or finish a Google link (?code=) before
 # any page runs, so pages see the right repository on their first render. A

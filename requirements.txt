@@ -9,3 +9,6 @@ pillow>=10.0.0,<13.0.0
 numpy>=1.26.0,<3.0.0
 pandas>=2.2.0,<4.0.0
 supabase>=2.0.0,<3.0.0
+# Reads/writes browser cookies over the component channel. Required because
+# st.context.cookies is always empty on Streamlit Community Cloud.
+extra-streamlit-components>=0.1.80,<0.2.0
