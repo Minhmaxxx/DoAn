@@ -735,6 +735,26 @@ Sáu lỗi đầu bắt được nhờ **spike chạy thật trước khi viết
 | `335e66c` | Đọc lỗi Supabase trả về, không chỉ đọc `?code=` |
 | `42f392a` | Dựng URL Google một lần, không dựng lại mỗi render |
 
+### 2026-08-20 - Cron chống pause đã chạy thật; thêm `verify_rls.sql`
+
+**Cron:** người dùng đã thêm hai GitHub repo secrets. Workflow *Supabase keepalive* chạy xanh cả lần bấm tay lẫn lần theo lịch. Lần đầu mất 5 phút 09 giây, lần sau chỉ 7 giây — chênh lệch này khớp với việc lần đầu phải đánh thức project đang ngủ, còn về sau chỉ là một request tới project đang chạy. Giai đoạn A coi như xong trọn vẹn.
+
+Lưu ý còn hiệu lực: GitHub tự tắt scheduled workflow sau 60 ngày repo không có hoạt động, nên trước buổi bảo vệ vẫn phải đánh thức và kiểm tra project thủ công.
+
+**`verify_rls.sql` (mới):** ba câu truy vấn kiểm chứng RLS đang thực sự bật trong database, chạy trong SQL Editor.
+
+Lý do cần có, và đây mới là điểm đáng ghi: **không có gì trong ứng dụng phát hiện được việc RLS bị tắt.** Trình duyệt nói thẳng với PostgREST, không có server trung gian nào của mình, nên các policy trong `storage_schema.sql` là lớp bảo vệ duy nhất. Nếu hôm chạy schema mà nửa dưới của file (`enable row level security` và tám `create policy`) không được thực thi, ứng dụng chạy **y hệt**: đồng bộ đúng, dữ liệu đúng, không lỗi ở đâu cả. Khác biệt duy nhất là bảng đang mở toang cho bất kỳ ai cầm publishable key — mà key đó gửi tới mọi trình duyệt.
+
+Đọc source của policy chỉ chứng minh nó *được viết đúng*, không chứng minh nó *đang sống* trong database này. Ba câu truy vấn:
+
+1. `pg_class.relrowsecurity` cho `profiles` và `meals` — kỳ vọng `true` cả hai.
+2. Đếm policy trong `pg_policies` — kỳ vọng 8 dòng, mỗi bảng đủ SELECT/INSERT/UPDATE/DELETE.
+3. Đọc `qual` và `with_check` của từng policy — kỳ vọng đều nhắc tới `auth.uid()` và `user_id`. Câu này bắt trường hợp policy tồn tại nhưng viết `using (true)`, tức thoả câu 2 mà không bảo vệ gì.
+
+**Quyết định về phạm vi:** bài 1 của ma trận mục 12 `STORAGE_PLAN.md` yêu cầu tấn công trực diện — cầm JWT của tài khoản A gọi PostgREST đọc/sửa/xóa dữ liệu tài khoản B, gồm cả phép ghi một dòng `user_id = B` để kiểm chứng mệnh đề `with check`. Bài đó **cố ý hoãn lại**, không phải bỏ quên. Lý do: trọng tâm đồ án là phần AI, còn rủi ro thật ở đây không phải "policy viết sai" (đọc source là kiểm được) mà "policy chưa được bật", và ba câu truy vấn trên đã trả lời đúng câu đó với chi phí gần bằng không. Nếu cần một bằng chứng mạnh hơn để trả lời hội đồng thì viết script tấn công sau; hiện chưa cần.
+
+**Kết quả chạy:** chờ người dùng chạy `verify_rls.sql` và báo lại, sẽ ghi bổ sung vào mục này.
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
 ### Phase C5 - Kiểm tra thủ công còn lại
@@ -750,8 +770,8 @@ Sáu lỗi đầu bắt được nhờ **spike chạy thật trước khi viết
 ### Lưu trữ đa thiết bị (STORAGE_PLAN.md)
 
 - Giai đoạn 0, A và C **đã xong**. **Bài 2 (F5 giữ đăng nhập) và bài 4 (đồng bộ đa thiết bị) đều PASS trên production ngày 2026-08-20** — xem nhật ký cùng ngày ở mục 7. Tính năng coi như hoàn tất về mặt chức năng.
-- **Việc người dùng còn phải làm:** thêm hai GitHub repo secrets ở Settings → Secrets and variables → Actions: `SUPABASE_URL` và `SUPABASE_PUBLISHABLE_KEY`, rồi chạy thử workflow *Supabase keepalive* bằng nút **Run workflow** (log phải in `HTTP 200`). Chưa thêm thì workflow chỉ cảnh báo rồi bỏ qua, và project Supabase sẽ bị pause sau 7 ngày không hoạt động.
-- **Kiểm thử thủ công còn nợ** — bảng tình trạng đầy đủ 14 bài nằm ở cuối mục 12 `STORAGE_PLAN.md`. Đáng làm nhất là **bài 1: kiểm chứng RLS bằng cách gọi PostgREST trực tiếp bằng JWT của tài khoản A để thử đọc dữ liệu tài khoản B** — cho tới giờ RLS mới chỉ được tin là đúng vì UI không cho làm sai, chưa bị tấn công trực diện lần nào. Còn lại là biến thể môi trường: bài 3 (mở lại từ icon PWA), bài 5 (redeploy không mất phiên), bài 10 (lưu khi mất mạng), bài 13 (PWA standalone trên iPhone — Safari nghiêm ngặt nhất với cookie nên đây là bài dễ hỏng riêng), bài 14 (pause/restore project).
+- **Cron chống pause đã xong** (2026-08-20): secrets đã thêm, workflow *Supabase keepalive* chạy xanh cả lần bấm tay lẫn lần theo lịch.
+- **Kiểm thử thủ công còn nợ** — bảng tình trạng đầy đủ 14 bài nằm ở cuối mục 12 `STORAGE_PLAN.md`. Việc gần nhất là chạy **`verify_rls.sql`** (bài 1a) trong SQL Editor — xác nhận RLS đang bật thật, vì đây là lỗi mà ứng dụng không lộ ra bằng bất kỳ triệu chứng nào. Bài 1b (tấn công trực diện bằng JWT của tài khoản khác) hoãn có chủ ý, xem lý do trong nhật ký 2026-08-20. Còn lại là biến thể môi trường: bài 3 (mở lại từ icon PWA), bài 5 (redeploy không mất phiên), bài 10 (lưu khi mất mạng), bài 13 (PWA standalone trên iPhone — Safari nghiêm ngặt nhất với cookie nên đây là bài dễ hỏng riêng), bài 14 (pause/restore project).
 - **Rủi ro còn lại đã biết:** GitHub tự tắt scheduled workflow sau 60 ngày repo không có hoạt động, nên trước buổi bảo vệ vẫn phải đánh thức và kiểm tra project Supabase thủ công, không tin hoàn toàn vào cron.
 - Giai đoạn D: rà 23 chỗ `unsafe_allow_html=True` còn lại (đã xác nhận `pages/3_Ho_so.py`→`utils/ui.py` escape đúng), thêm test XSS chốt hành vi, export JSON dự phòng.
 - `utils/history.append_meal_once()` giờ không còn trang nào gọi (đã thay bằng `SessionRepository.save_meal`), chỉ còn test dùng — cân nhắc bỏ khi dọn dẹp.

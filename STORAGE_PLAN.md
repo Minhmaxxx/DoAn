@@ -434,7 +434,8 @@ bắt được, giống hệt bài học của Giai đoạn 0):
 
 | # | Tình trạng | Bằng chứng |
 |---|---|---|
-| 1 | **CHƯA CHẠY** | Cần gọi PostgREST trực tiếp bằng JWT của tài khoản A để đọc dữ liệu B. Đây là bài kiểm chứng RLS, quan trọng nhất về mặt an toàn trong số các bài còn lại |
+| 1a | Chờ chạy | `verify_rls.sql` — ba truy vấn xác nhận RLS đang **bật** và tám policy đang **sống** trong database. Bắt được lỗi mà ứng dụng hoàn toàn không lộ ra: nếu nửa dưới `storage_schema.sql` chưa từng chạy thì app vẫn hoạt động y hệt, chỉ là bảng mở toang |
+| 1b | **Hoãn có chủ ý** | Tấn công trực diện: cầm JWT tài khoản A gọi PostgREST đọc/sửa/xóa dữ liệu B, và ghi một dòng `user_id = B` để kiểm chứng mệnh đề `with check`. Chỉ cần khi muốn có bằng chứng HTTP cụ thể trả lời hội đồng; rủi ro thật đã được 1a phủ |
 | 2 | **PASS** | Production, 2026-08-20. Sau F5: `Thấy cookie phiên: true`, hồ sơ vừa chỉnh còn nguyên |
 | 3 | Chưa chạy | |
 | 4 | **PASS** | Hai trình duyệt thật, 2026-08-20. Gồm cả vế sửa dữ liệu ở máy A rồi tải lại máy B thấy ngay |
