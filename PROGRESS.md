@@ -1,7 +1,7 @@
 # NutriVision Progress Record
 
-**Cập nhật:** 2026-08-19<br>
-**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật. Lưu trữ đa thiết bị (`STORAGE_PLAN.md`): Giai đoạn 0, A và C xong 2026-08-19 — đồng bộ Supabase đã nối vào app dưới dạng **opt-in** ("Bật đồng bộ"), chế độ khách vẫn là mặc định; 6 lỗi phát hiện nhờ chạy thật đã vá. Liên kết Google đã xác minh trên trình duyệt thật là giữ nguyên `user_id`; thử tiếp trên bản deploy thì lộ ra thiếu hẳn đường **đăng nhập** ở thiết bị thứ hai, đã bổ sung `sign_in_with_oauth()`. Còn nợ: kiểm thử thật vế thiết bị thứ hai (bài 4), bài 2/3/5/13, và Giai đoạn D (hardening XSS, export JSON).
+**Cập nhật:** 2026-08-20<br>
+**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật. Lưu trữ đa thiết bị (`STORAGE_PLAN.md`): Giai đoạn 0, A và C xong 2026-08-19 — đồng bộ Supabase đã nối vào app dưới dạng **opt-in** ("Bật đồng bộ"), chế độ khách vẫn là mặc định; 6 lỗi phát hiện nhờ chạy thật đã vá. Liên kết Google đã xác minh trên trình duyệt thật là giữ nguyên `user_id`; thử tiếp trên bản deploy thì lộ ra thiếu hẳn đường **đăng nhập** ở thiết bị thứ hai, đã bổ sung `sign_in_with_oauth()`. Ngày 2026-08-20 đo trên production: kênh component đọc được cookie (9 cookie, so với 0 qua `st.context`), nhưng phát hiện chiều *ghi* bị `st.rerun()` nuốt — đây mới là nguyên nhân F5 mất hồ sơ và sinh tài khoản trùng; đã viết lại `utils/cookies.py` với hàng đợi ghi có retry. Còn nợ: kiểm thử thật bài 2 (F5) và vế thiết bị thứ hai của bài 4, bài 3/5/13, và Giai đoạn D (hardening XSS, export JSON).
 
 Tài liệu này lưu lại các quyết định, kết quả kiểm tra và bằng chứng có thể dùng khi viết báo cáo hoặc tiếp tục phát triển.
 
@@ -585,6 +585,55 @@ URL OAuth chỉ được tạo sau khi bấm nút, không tạo lúc render, nê
 
 Bài học rút ra: bài 4 của ma trận mục 12 được đánh dấu pass quá sớm. Nó đòi "ẩn danh trên máy A, liên kết Google, **đăng nhập trên máy B**", nhưng phần kiểm thử chỉ chạy hết vế đầu trên cùng một trình duyệt. Vế "máy B" mới là vế phát hiện ra lỗ hổng. Bài 4 giờ tính là **chưa pass** cho tới khi thử thật trên thiết bị/trình duyệt thứ hai.
 
+### 2026-08-20 - Cookie component chạy đúng, nhưng ghi cookie bị `st.rerun()` nuốt mất
+
+**Mục tiêu:** đọc kết quả đo trên production sau khi chuyển sang `utils/cookies.py` và xử lý phần còn hỏng.
+
+**Người dùng đo được ba trạng thái liên tiếp trong bảng "Chẩn đoán đồng bộ":**
+
+| Thời điểm | Component trả lời | Số cookie đọc được | Thấy `nv_refresh_token` | Qua `st.context` |
+|---|---|---|---|---|
+| Khách, chưa làm gì | true | 9 | false | 0 |
+| Ngay sau "Bật đồng bộ" (trạng thái `anonymous`) | true | 9 | **false** | 0 |
+| Sau khi liên kết Google (trạng thái `linked`) | true | 9 | true (dài 12) | 0 |
+
+**Kết luận 1 — bản vá component đã thành công.** `Số cookie đọc được: 9` so với `Qua st.context: 0` là bằng chứng trực tiếp: trình duyệt có cookie, nền tảng bóc sạch khỏi HTTP header, và kênh component lấy được. Chặn lớn ngày 2026-08-19 coi như đã xử lý xong ở tầng đọc.
+
+**Kết luận 2 — `Độ dài token: 12` là bình thường, không phải bị cắt.** Đã đo trực tiếp trên project thật (spike, `.venv311`): refresh token Supabase dài đúng 12 ký tự chữ-số, và `refresh_session()` với đúng chuỗi đó trả về cùng `user.id`. Ghi lại vì con số này trông giống dấu hiệu cookie bị truncate.
+
+**Kết luận 3 — lỗi thật nằm ở tầng *ghi*.** Dòng thứ hai của bảng là bằng chứng: tài khoản ẩn danh đã tạo xong nhưng trình duyệt **không** có cookie phiên. Nguyên nhân: `manager.set()` chỉ *render một iframe*; cookie chỉ thực sự tồn tại khi JS trong iframe đó chạy, tức sau khi script kết thúc. Nút "Bật đồng bộ" gọi `st.rerun()` ngay sau đó, Streamlit dựng lại cây phần tử và iframe chưa kịp chạy. Cùng lỗi này áp cho "Đăng xuất" (`clear_session_cookie()` rồi `st.rerun()`).
+
+**Đây chính là nguyên nhân của hai triệu chứng người dùng báo:**
+
+- *F5 mất hồ sơ vừa lưu*: không có cookie thì lần tải trang sau là khách.
+- *Có hai dòng "Lăng Nhật Minh" trong bảng `profiles`*: mỗi lần "Bật đồng bộ" lại tạo một tài khoản ẩn danh mới rồi lưu hồ sơ vào đó, vì lần trước không để lại cookie nào.
+
+**Sửa** (`utils/cookies.py` viết lại):
+
+1. **Hàng đợi ghi có retry.** Mỗi lần ghi/xóa được lưu vào session state và phát lại ở đầu mỗi vòng chạy sau — trong `init_cookie_manager()`, tức trước khi bất cứ chỗ nào kịp `st.rerun()` — cho tới khi trình duyệt báo lại đúng giá trị. Nhờ vậy chỗ gọi được phép `st.rerun()` thoải mái. Hết lượt retry mà vẫn chưa xác nhận thì ghi vào `unconfirmed_writes()` để bảng chẩn đoán nói ra, thay vì phiên tự bốc hơi lúc tải lại.
+2. **Lớp overlay khi đọc.** Snapshot của component chỉ cập nhật khi frontend trả lời, nên cookie vừa ghi sẽ đọc ra "không có" và cookie vừa xóa vẫn đọc ra "còn". `read_cookie()` ưu tiên overlay của chính mình; xóa để lại *tombstone* nên `bootstrap_session()` không thể khôi phục lại phiên mà người dùng vừa đăng xuất.
+3. **`cookies_ready()` dính (sticky).** Một lần trả lời rồi thì giữ nguyên, tránh việc câu trả lời rỗng sau đó bị hiểu là "chưa hỏi" và làm bootstrap treo.
+4. **Hạn cookie dùng timezone-aware.** `CookieManager` gửi `isoformat()` sang trình duyệt, mà JS đọc chuỗi không timezone theo giờ **local** — server Cloud chạy UTC nên mọi hạn dùng đều lệch đúng bằng offset của người xem.
+5. **`retry=False` cho `code_verifier` PKCE.** Verifier được ghi lại ở mỗi lần render, nên retry sẽ gửi verifier *cũ* cùng lúc với verifier mới, và iframe nào chạy sau sẽ quyết định cookie còn khớp `code_challenge` trong URL hay không. Ghi lại mỗi render đã là tự lành, không cần retry.
+6. **Khóa component tăng dần theo lượt.** Hai instance trùng khóa trong một vòng chạy là lỗi Streamlit; dùng lại khóa cũ với tham số không đổi thì Streamlit trả kết quả cache và retry thành no-op câm.
+7. **Xóa cookie chưa từng tồn tại không tốn gì.** GoTrue gọi `remove_item()` cho các khóa nó chưa bao giờ ghi (`sign_in_with_oauth()` dọn sạch storage trước), nên nếu xếp hàng retry thì mỗi vòng chạy đều render một iframe xóa rồi báo nhầm là "trình duyệt từ chối ghi".
+
+**Sửa kèm trong `pages/3_Ho_so.py`:** URL đăng nhập Google giờ dựng lại ở **mỗi lần render** thay vì cache trong session state. Mỗi lần dựng sinh một verifier mới và đè cookie, nên URL cache sẽ mang `code_challenge` của verifier mà cookie không còn giữ — đúng kiểu hỏng "bấm xong không thấy gì xảy ra". Cách này giống hệt nút liên kết, vốn vẫn chạy được chính vì nó dựng lại mỗi render. Cờ chỉ bật sau khi bấm nút, nên khách vẫn không dựng Supabase client và test chốt trong `tests/test_pages.py` vẫn đúng.
+
+**Bảng chẩn đoán** thêm hai dòng: `Đang chờ trình duyệt ghi` (thoáng qua, bình thường) và `Trình duyệt từ chối ghi` (phiên này sẽ mất khi tải lại).
+
+| Lệnh/kiểm tra | Kết quả |
+|---|---|
+| `.venv311\Scripts\python.exe -m pytest -q` | `155 passed, 1 skipped` (thêm `tests/test_cookies.py`, 14 test) |
+| `.venv311\Scripts\python.exe test_imports.py` | `All smoke checks passed` |
+| Spike đo refresh token trên project thật | dài 12, `refresh_session()` trả về cùng `user.id` |
+
+**Quyết định:** `tests/test_cookies.py` mô phỏng đúng hai tính chất đã gây ra lỗi — `.cookies` là snapshot cũ (ghi mới không thấy trong đó) và `.set()` chỉ là *yêu cầu* ghi mà frontend có thể không thực hiện. Test "ghi bị rerun nuốt thì vòng sau phát lại" là test lẽ ra phải có ngay từ đầu.
+
+**Bài học nối tiếp mục trước:** lần trước rút ra "phải kiểm chứng giả định rủi ro nhất trên đúng môi trường triển khai". Lần này rút thêm: bảng chẩn đoán phải đo **cả hai chiều** — có đọc được cookie *và* ghi có tới nơi không. Bản chẩn đoán đầu chỉ đo chiều đọc nên khi chiều đọc đã xanh, vẫn không nhìn ra chiều ghi đang hỏng.
+
+**Chưa xác minh trên production:** vẫn cần deploy rồi chạy lại bài 2 (F5 giữ đăng nhập) và bài 4 vế hai (đăng nhập ở thiết bị khác).
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
 ### Phase C5 - Kiểm tra thủ công còn lại
@@ -600,9 +649,10 @@ Bài học rút ra: bài 4 của ma trận mục 12 được đánh dấu pass q
 ### Lưu trữ đa thiết bị (STORAGE_PLAN.md)
 
 - Giai đoạn 0, A và C **đã xong** (2026-08-19) — xem hai mục nhật ký cùng ngày ở mục 7.
+- **Việc người dùng phải làm - dọn dữ liệu rác:** chạy `delete from auth.users where is_anonymous = true;` trong SQL Editor của Supabase. Lệnh này xóa các tài khoản ẩn danh sinh ra trong spike và trong các lần "Bật đồng bộ" bị mất cookie (gồm cả hai dòng "Lăng Nhật Minh" trùng nhau, xóa theo cascade), cộng một tài khoản do spike đo độ dài refresh token ngày 2026-08-20 tạo ra. Tài khoản Google đã liên kết có `is_anonymous = false` nên không bị đụng tới.
 - **Việc người dùng phải làm để cron chạy được:** thêm hai GitHub repo secrets ở Settings → Secrets and variables → Actions: `SUPABASE_URL` và `SUPABASE_PUBLISHABLE_KEY`. Chưa thêm thì workflow chỉ cảnh báo rồi bỏ qua.
 - **Kiểm thử thủ công còn nợ:** bài 4 mới xong **vế đầu** (liên kết Google giữ nguyên `user_id`, xác minh bằng SQL). Vế quyết định — đăng nhập lại trên **thiết bị thứ hai** và thấy đủ dữ liệu cũ — vẫn chưa chạy; chính vế này đã lộ ra lỗ hổng thiếu `sign_in_with_oauth()`. Còn bài 2 (F5 giữ đăng nhập), 3 (mở lại từ icon PWA), 5 (redeploy không mất phiên) và 13 (PWA standalone trên iPhone).
-- Bài 2 là bài đáng lo nhất còn lại: nó kiểm chứng cookie refresh-token ghi bằng JS có thực sự sống sót qua reload hay không — tức toàn bộ lý do bản 3 của kế hoạch bỏ `st.login()`.
+- Bài 2 vẫn là bài đáng lo nhất: nó kiểm chứng cookie refresh-token có thực sự sống sót qua reload hay không — tức toàn bộ lý do bản 3 của kế hoạch bỏ `st.login()`. Sau bản vá 2026-08-20, dấu hiệu cần nhìn trong "Chẩn đoán đồng bộ" là `Thấy cookie phiên: true` **sau khi F5**, và `Trình duyệt từ chối ghi: không có`.
 - Giai đoạn D: rà 23 chỗ `unsafe_allow_html=True` còn lại (đã xác nhận `pages/3_Ho_so.py`→`utils/ui.py` escape đúng), thêm test XSS chốt hành vi, export JSON dự phòng.
 - `utils/history.append_meal_once()` giờ không còn trang nào gọi (đã thay bằng `SessionRepository.save_meal`), chỉ còn test dùng — cân nhắc bỏ khi dọn dẹp.
 

@@ -31,6 +31,7 @@
 - Cloud sync is opt-in: the user presses "Bật đồng bộ" on the profile page, which calls `utils.repository.enable_sync()` to create a Supabase anonymous account and upload existing session data. `link_identity()` then upgrades it to Google without changing `user_id` (verified against the live project). Pages go through `get_repository()` and must not branch on auth state themselves.
 - Nothing may construct a Supabase client just by rendering a page: `tests/test_pages.py` asserts every page stays guest-only, which is what keeps the release gate offline. `utils.auth` functions take `get_client().auth`; repositories take `get_client()`. See `STORAGE_PLAN.md` for the required Supabase settings (Anonymous sign-ins, Manual Linking, Redirect URLs).
 - Never read cookies through `st.context.cookies`: it is always empty on Streamlit Community Cloud, which silently broke every persisted session. Go through `utils/cookies.py`, and treat `cookies_ready() == False` as "unknown", never as "no session" — `app.py` renders the cookie component once per run before anything reads it.
+- A cookie write is only a request to write: `manager.set()` renders an iframe whose JS runs after the script ends, so an `st.rerun()` in the same run cancels it. `utils/cookies.py` therefore queues writes and replays them from `init_cookie_manager()` until the browser confirms — do not bypass it, and keep any new write going through `write_cookie()`/`delete_cookie()`.
 - `datasets/`, `runs/`, and `models/weights/*.pt` are generated or large artifacts and are gitignored.
 
 ## Training

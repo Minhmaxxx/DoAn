@@ -73,8 +73,12 @@ class _CodeVerifierCookieStorage:
         return cookies.read_cookie(self._PREFIX + key)
 
     def set_item(self, key: str, value: str) -> None:
+        # retry=False: the pages rebuild the OAuth URL on every render, and
+        # each rebuild mints a new verifier. A retry would re-send a stale one
+        # next to the fresh one and could leave the cookie disagreeing with
+        # the code_challenge in the URL the user is about to follow.
         cookies.write_cookie(
-            self._PREFIX + key, value, max_age_days=self._MAX_AGE_DAYS
+            self._PREFIX + key, value, max_age_days=self._MAX_AGE_DAYS, retry=False
         )
 
     def remove_item(self, key: str) -> None:
@@ -321,6 +325,7 @@ def logout(client: Optional[SupabaseAuthClient] = None) -> None:
         "llm_runtime_config",
         "meal_signature",
         "saved_meal_signatures",
+        "google_signin_requested",
         "_supabase_client",  # drop the cached Client too, not just the id — see get_client()
     ):
         st.session_state.pop(key, None)
@@ -395,6 +400,11 @@ def cookie_diagnostics() -> dict:
         "has_session_cookie": bool(token),
         "session_cookie_length": len(token) if isinstance(token, str) else 0,
         "pkce_cookies": [name for name in seen if name.startswith("nv_pkce_")],
+        # A write is only durable once the browser confirms it. "pending" is
+        # normal for a run or two; "unconfirmed" means the browser refused the
+        # cookie and this session will not survive a reload.
+        "pending_writes": sorted(cookies.pending_writes()),
+        "unconfirmed_writes": sorted(cookies.unconfirmed_writes()),
         # Kept for contrast: this path reads 0 on Streamlit Community Cloud
         # and non-zero locally, which is the whole reason utils/cookies.py
         # exists.

@@ -109,12 +109,18 @@ class FakeCookieStore:
         value = self.store.get(name)
         return value if isinstance(value, str) and value else None
 
-    def write_cookie(self, name, value, *, max_age_days):
+    def write_cookie(self, name, value, *, max_age_days, retry=True):
         self.store[name] = value
         return True
 
     def delete_cookie(self, name):
         self.store.pop(name, None)
+
+    def pending_writes(self) -> dict:
+        return {}
+
+    def unconfirmed_writes(self) -> dict:
+        return {}
 
 
 @pytest.fixture

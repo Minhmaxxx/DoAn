@@ -345,13 +345,16 @@ def _render_sync_diagnostics():
                 "Thấy cookie phiên (nv_refresh_token)": info["has_session_cookie"],
                 "Độ dài token": info["session_cookie_length"],
                 "Cookie PKCE": info["pkce_cookies"] or "không có",
+                "Đang chờ trình duyệt ghi": info["pending_writes"] or "không có",
+                "Trình duyệt từ chối ghi": info["unconfirmed_writes"] or "không có",
                 "Qua st.context (luôn 0 trên Cloud)": info["via_st_context"],
             }
         )
         st.caption(
             "`Component đã trả lời: False` chỉ là trạng thái thoáng qua khi vừa "
             "tải trang. Nếu nó vẫn False sau vài giây thì component cookie không "
-            "chạy được."
+            "chạy được. `Đang chờ trình duyệt ghi` cũng chỉ thoáng qua; còn "
+            "`Trình duyệt từ chối ghi` nghĩa là phiên này sẽ mất khi tải lại."
         )
 
 
@@ -364,25 +367,32 @@ def _render_google_signin_button():
       so a guest visiting this page still constructs no Supabase client
       (tests/test_pages.py enforces that).
     - Building that URL is also what writes the PKCE code_verifier cookie, via
-      JS that the browser only runs once this render reaches it. An automatic
-      redirect in the same run raced that script: navigating away before the
-      cookie was written left exchange_code_for_session() with no verifier, so
-      the user came back from Google and nothing happened. The user clicking
-      the link themselves is what guarantees the cookie landed first — the
-      same shape as the link flow, which worked for exactly that reason.
+      a component the browser only runs once this render reaches it. An
+      automatic redirect in the same run raced that: navigating away before
+      the cookie was written left exchange_code_for_session() with no
+      verifier, so the user came back from Google and nothing happened. The
+      user clicking the link themselves is what guarantees the cookie landed
+      first — the same shape as the link flow, which worked for that reason.
+
+    The URL is rebuilt on every render once requested, never cached in session
+    state. Each call mints a fresh verifier and overwrites the cookie, so a
+    cached URL would carry the code_challenge of a verifier the cookie no
+    longer holds and the exchange would fail. Rebuilding keeps the pair in
+    lockstep, which is exactly what the link button does.
     """
     if st.button("Đăng nhập bằng Google", key="google_signin"):
-        try:
-            st.session_state.google_signin_url = auth.start_google_signin(
-                auth.get_client().auth, auth.site_url()
-            )
-        except Exception as error:
-            st.error(f"Không tạo được liên kết đăng nhập: {error}")
+        st.session_state.google_signin_requested = True
 
-    url = st.session_state.get("google_signin_url")
-    if url:
-        st.link_button("Tiếp tục tới Google", url, type="primary", width="stretch")
-        st.caption("Bấm nút trên để sang Google.")
+    if not st.session_state.get("google_signin_requested"):
+        return
+
+    try:
+        url = auth.start_google_signin(auth.get_client().auth, auth.site_url())
+    except Exception as error:
+        st.error(f"Không tạo được liên kết đăng nhập: {error}")
+        return
+    st.link_button("Tiếp tục tới Google", url, type="primary", width="stretch")
+    st.caption("Bấm nút trên để sang Google.")
 
 
 def _render_sync_section(status: str):

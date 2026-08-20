@@ -54,6 +54,22 @@ pattern JS trên parent document trong `utils/pwa.py`.
 > Bài học cho báo cáo: giả định rủi ro nhất của kế hoạch phải được kiểm chứng
 > **trên đúng môi trường triển khai** trước khi xây tiếp. Local chạy tốt chính
 > là thứ đã che giấu vấn đề này suốt cả Giai đoạn C.
+>
+> **Bổ sung 2026-08-20 — chiều ghi cũng hỏng, vì lý do khác.** Sau khi chiều
+> đọc đã chạy (đo được 9 cookie qua component, 0 qua `st.context`), đo tiếp
+> thấy `nv_refresh_token` không hề tồn tại sau khi bấm "Bật đồng bộ".
+> Nguyên nhân: `manager.set()` chỉ *render một iframe*, cookie chỉ có thật khi
+> JS trong iframe chạy — tức sau khi script kết thúc — còn `st.rerun()` ngay
+> sau đó dựng lại cây phần tử trước khi kịp. Đây là nguyên nhân thật của "F5
+> mất hồ sơ" và của các dòng `profiles` trùng tên (mỗi lần bật đồng bộ lại tạo
+> một tài khoản ẩn danh mới vì lần trước không để lại cookie).
+>
+> `utils/cookies.py` nay xếp mọi lần ghi/xóa vào một hàng đợi trong session
+> state và phát lại ở đầu mỗi vòng chạy cho tới khi trình duyệt xác nhận, nên
+> chỗ gọi được phép `st.rerun()` thoải mái; đồng thời `read_cookie()` đọc
+> overlay của chính mình trước snapshot của component, và xóa để lại tombstone
+> để không khôi phục nhầm phiên vừa đăng xuất. Bài học nối tiếp: bảng chẩn
+> đoán phải đo **cả hai chiều** — đọc được cookie *và* ghi có tới nơi.
 
 Hệ quả bảo mật phải chấp nhận: cookie ghi bằng JS **không thể đặt HttpOnly**.
 Đây là cách hoạt động tiêu chuẩn của mọi app dùng supabase-js (mặc định còn lưu
@@ -176,9 +192,10 @@ với bản nháp đầu tiên của mục này):
   ghi đầu
 - `start_google_link(client, redirect_to)` / `complete_oauth_callback(client,
   auth_code)` — luồng PKCE qua `st.query_params`
-- `restore_session(client)` — đọc refresh token từ `st.context.cookies` và
+- `restore_session(client)` — đọc refresh token qua `utils/cookies.py` và
   khôi phục
-- `persist_session()` / `clear_session_cookie()` — ghi và xóa cookie bằng JS
+- `persist_session()` / `clear_session_cookie()` — ghi và xóa cookie qua
+  `utils/cookies.py` (hàng đợi có retry, xem ghi chú 2026-08-20 ở mục 2)
 - `logout(client)` — xóa cookie, session Supabase, `user_profile`,
   `meal_history`, `llm_runtime_config`, `_supabase_client` và các key API tạm
 - `get_client()` — dựng **một lần** `supabase.Client` và cache trong
