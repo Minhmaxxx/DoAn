@@ -1,7 +1,7 @@
 # NutriVision Progress Record
 
 **Cập nhật:** 2026-08-20<br>
-**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật. Lưu trữ đa thiết bị (`STORAGE_PLAN.md`): Giai đoạn 0, A và C xong 2026-08-19 — đồng bộ Supabase đã nối vào app dưới dạng **opt-in** ("Bật đồng bộ"), chế độ khách vẫn là mặc định; 6 lỗi phát hiện nhờ chạy thật đã vá. Liên kết Google đã xác minh trên trình duyệt thật là giữ nguyên `user_id`; thử tiếp trên bản deploy thì lộ ra thiếu hẳn đường **đăng nhập** ở thiết bị thứ hai, đã bổ sung `sign_in_with_oauth()`. Ngày 2026-08-20 đo trên production: kênh component đọc được cookie (9 cookie, so với 0 qua `st.context`), nhưng phát hiện chiều *ghi* bị `st.rerun()` nuốt — đây mới là nguyên nhân F5 mất hồ sơ và sinh tài khoản trùng; đã viết lại `utils/cookies.py` với hàng đợi ghi có retry. **Bài 2 (F5 giữ đăng nhập) đã PASS trên production.** Lần đo đó lộ tiếp lỗi OAuth: app không đọc `?error=` mà Supabase trả về, nên liên kết Google bị từ chối trông như không có gì xảy ra — đã sửa. Còn nợ: vế thiết bị thứ hai của bài 4, bài 3/5/13, và Giai đoạn D (hardening XSS, export JSON).
+**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật. **Lưu trữ đa thiết bị (`STORAGE_PLAN.md`) đã hoàn tất về chức năng và xác minh trên production ngày 2026-08-20:** đồng bộ Supabase dạng opt-in ("Bật đồng bộ"), chế độ khách vẫn là mặc định, liên kết Google giữ nguyên `user_id`, bài 2 (F5 giữ đăng nhập) và bài 4 (đăng nhập ở thiết bị thứ hai, sửa dữ liệu ở máy này thấy ngay ở máy kia) đều PASS trên hai trình duyệt thật. Tổng cộng 12 lỗi tích hợp đã vá, sáu lỗi cuối chỉ lộ ra trên đúng môi trường triển khai. Còn nợ: bài 3/5/13 (biến thể PWA và redeploy), hai GitHub secrets cho cron chống pause, và Giai đoạn D (hardening XSS, export JSON).
 
 Tài liệu này lưu lại các quyết định, kết quả kiểm tra và bằng chứng có thể dùng khi viết báo cáo hoặc tiếp tục phát triển.
 
@@ -684,6 +684,57 @@ Chốt bằng test `test_only_one_place_mints_a_pkce_verifier` trong `tests/test
 
 **Bài học:** bản sửa buổi sáng ("dựng lại URL mỗi render để URL và cookie luôn khớp") là một cách chữa dựa trên suy đoán chứ không dựa trên số đo, và nó tự tạo ra đúng lỗi mà nó định phòng. Điểm chung với hai mục trước: khi chưa có tín hiệu đo được thì đừng sửa, hãy làm cho lỗi hiện ra trước. Đúng thứ tự đó lần này đã hiệu quả — chính bản vá "hiện lỗi lên" mới lôi được thông báo thật của máy chủ ra.
 
+### 2026-08-20 - Bài 4 PASS: đồng bộ đa thiết bị chạy đúng end-to-end
+
+**Điều kiện chạy:** xóa sạch `auth.users` trước (các tài khoản rác từ những lần lỗi trước vẫn đang giữ hai identity Google, khiến `link_identity()` chỉ có thể bị từ chối). Deploy commit `42f392a`, reboot app.
+
+**Kịch bản đã chạy trên hai trình duyệt thật:**
+
+| Bước | Kết quả |
+|---|---|
+| Trình duyệt A: Bật đồng bộ → lưu hồ sơ → Liên kết Google | Trạng thái `linked`, dữ liệu lên database |
+| Trình duyệt B (không chung cookie): Đăng nhập bằng Google | Mở đúng tài khoản cũ, thấy đủ hồ sơ của A |
+| Trình duyệt A: đổi cân nặng → Lưu thay đổi | Ghi lên máy chủ |
+| Trình duyệt B: tải lại trang | Thấy ngay cân nặng mới |
+
+**Xác nhận:** bài 4 của ma trận mục 12 `STORAGE_PLAN.md` **PASS toàn phần**, gồm cả vế thiết bị thứ hai — vế từng bị đánh dấu pass quá sớm ngày 2026-08-19 và chính nó đã lộ ra lỗ hổng thiếu `sign_in_with_oauth()`. Bước cuối (đổi dữ liệu ở A, đọc lại ở B) nằm ngoài ma trận nhưng là bằng chứng mạnh hơn: nó chứng minh đây là đồng bộ hai chiều thật, không phải chỉ khôi phục một lần lúc đăng nhập.
+
+**Cùng với bài 2 đã pass sáng cùng ngày, hai bài quyết định của cả kế hoạch lưu trữ đều đã có bằng chứng chạy thật trên đúng môi trường triển khai.** Tính năng lưu trữ đa thiết bị coi như hoàn tất về mặt chức năng.
+
+**Tổng kết chuỗi lỗi của tính năng này** (chi tiết ở các mục nhật ký 2026-08-19 và 2026-08-20). Tất cả đều là lỗi *tích hợp với nền tảng*, không phải lỗi thuật toán hay lỗi thiết kế dữ liệu — schema, RLS và `utils/repository.py` không phải sửa dòng nào sau khi chốt:
+
+| # | Lỗi | Phát hiện bằng |
+|---|---|---|
+| 1 | Anonymous sign-ins chưa bật trong dashboard | spike thật, HTTP 422 |
+| 2 | `redirect_to` phải lồng trong `options` | đọc shape của SDK |
+| 3 | `get_client()` dựng client mới mỗi lần gọi → mọi truy vấn chạy bằng anon key | spike thật |
+| 4 | `code_verifier` PKCE không sống qua vòng redirect | spike thật |
+| 5 | `maybe_single().execute()` trả `None` | spike thật |
+| 6 | `ClientOptions` không có `storage`, phải dùng `SyncClientOptions` | spike thật |
+| 7 | `record_signature()` trùng nhau do `datetime.now()` trên Windows chỉ ~16ms | test |
+| 8 | Thiếu hẳn đường đăng nhập ở thiết bị thứ hai | thử trên bản deploy |
+| 9 | `st.context.cookies` luôn rỗng trên Streamlit Cloud | đo trên production |
+| 10 | Ghi cookie bị `st.rerun()` huỷ | đo trên production |
+| 11 | App không đọc `?error=` Supabase trả về | đo trên production |
+| 12 | Hai URL OAuth cùng đè một cookie verifier | đo trên production |
+
+Sáu lỗi đầu bắt được nhờ **spike chạy thật trước khi viết code**; sáu lỗi sau chỉ lộ ra **trên đúng môi trường triển khai**. Đó là kết luận đáng đưa vào báo cáo: với tích hợp dịch vụ ngoài, unit test và chạy local không đủ để kết luận đúng — cả hai đều xanh trong suốt thời gian sáu lỗi cuối đang tồn tại.
+
+**Commit của tính năng lưu trữ, theo thứ tự:**
+
+| Commit | Nội dung |
+|---|---|
+| `25e24b3` | Chuẩn bị deploy cloud và `STORAGE_PLAN.md` |
+| `4a45566` | Đồng bộ Supabase dạng opt-in cho hồ sơ và lịch sử |
+| `b3d65f6` | Nói rõ thiếu mục cấu hình Supabase nào |
+| `8799ddb` | Thêm đăng nhập Google cho thiết bị thứ hai |
+| `3af1cf2` | Không để cookie PKCE bị auto-redirect chạy trước |
+| `d47e7bc` | Giải mã cookie phiên, không nuốt lỗi khôi phục |
+| `6acb0c4` | Đọc cookie qua component thay cho `st.context.cookies` |
+| `7ec94c1` | Chặn `st.rerun()` huỷ mất lệnh ghi cookie |
+| `335e66c` | Đọc lỗi Supabase trả về, không chỉ đọc `?code=` |
+| `42f392a` | Dựng URL Google một lần, không dựng lại mỗi render |
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
 ### Phase C5 - Kiểm tra thủ công còn lại
@@ -698,11 +749,10 @@ Chốt bằng test `test_only_one_place_mints_a_pkce_verifier` trong `tests/test
 
 ### Lưu trữ đa thiết bị (STORAGE_PLAN.md)
 
-- Giai đoạn 0, A và C **đã xong** (2026-08-19) — xem hai mục nhật ký cùng ngày ở mục 7.
-- **Việc người dùng phải làm - dọn dữ liệu rác:** chạy `delete from auth.users where is_anonymous = true;` trong SQL Editor của Supabase. Lệnh này xóa các tài khoản ẩn danh sinh ra trong spike và trong các lần "Bật đồng bộ" bị mất cookie (gồm cả hai dòng "Lăng Nhật Minh" trùng nhau, xóa theo cascade), cộng một tài khoản do spike đo độ dài refresh token ngày 2026-08-20 tạo ra. Tài khoản Google đã liên kết có `is_anonymous = false` nên không bị đụng tới.
-- **Việc người dùng phải làm để cron chạy được:** thêm hai GitHub repo secrets ở Settings → Secrets and variables → Actions: `SUPABASE_URL` và `SUPABASE_PUBLISHABLE_KEY`. Chưa thêm thì workflow chỉ cảnh báo rồi bỏ qua.
-- **Kiểm thử thủ công còn nợ:** bài 4 mới xong **vế đầu** (liên kết Google giữ nguyên `user_id`, xác minh bằng SQL). Vế quyết định — đăng nhập lại trên **thiết bị thứ hai** và thấy đủ dữ liệu cũ — vẫn chưa chạy; chính vế này đã lộ ra lỗ hổng thiếu `sign_in_with_oauth()`. Còn bài 2 (F5 giữ đăng nhập), 3 (mở lại từ icon PWA), 5 (redeploy không mất phiên) và 13 (PWA standalone trên iPhone).
-- ~~Bài 2~~ **đã pass 2026-08-20** trên production (xem nhật ký cùng ngày). Ghi chú cũ giữ lại làm bối cảnh: bài 2 từng là bài đáng lo nhất: nó kiểm chứng cookie refresh-token có thực sự sống sót qua reload hay không — tức toàn bộ lý do bản 3 của kế hoạch bỏ `st.login()`. Sau bản vá 2026-08-20, dấu hiệu cần nhìn trong "Chẩn đoán đồng bộ" là `Thấy cookie phiên: true` **sau khi F5**, và `Trình duyệt từ chối ghi: không có`.
+- Giai đoạn 0, A và C **đã xong**. **Bài 2 (F5 giữ đăng nhập) và bài 4 (đồng bộ đa thiết bị) đều PASS trên production ngày 2026-08-20** — xem nhật ký cùng ngày ở mục 7. Tính năng coi như hoàn tất về mặt chức năng.
+- **Việc người dùng còn phải làm:** thêm hai GitHub repo secrets ở Settings → Secrets and variables → Actions: `SUPABASE_URL` và `SUPABASE_PUBLISHABLE_KEY`, rồi chạy thử workflow *Supabase keepalive* bằng nút **Run workflow** (log phải in `HTTP 200`). Chưa thêm thì workflow chỉ cảnh báo rồi bỏ qua, và project Supabase sẽ bị pause sau 7 ngày không hoạt động.
+- **Kiểm thử thủ công còn nợ** — bảng tình trạng đầy đủ 14 bài nằm ở cuối mục 12 `STORAGE_PLAN.md`. Đáng làm nhất là **bài 1: kiểm chứng RLS bằng cách gọi PostgREST trực tiếp bằng JWT của tài khoản A để thử đọc dữ liệu tài khoản B** — cho tới giờ RLS mới chỉ được tin là đúng vì UI không cho làm sai, chưa bị tấn công trực diện lần nào. Còn lại là biến thể môi trường: bài 3 (mở lại từ icon PWA), bài 5 (redeploy không mất phiên), bài 10 (lưu khi mất mạng), bài 13 (PWA standalone trên iPhone — Safari nghiêm ngặt nhất với cookie nên đây là bài dễ hỏng riêng), bài 14 (pause/restore project).
+- **Rủi ro còn lại đã biết:** GitHub tự tắt scheduled workflow sau 60 ngày repo không có hoạt động, nên trước buổi bảo vệ vẫn phải đánh thức và kiểm tra project Supabase thủ công, không tin hoàn toàn vào cron.
 - Giai đoạn D: rà 23 chỗ `unsafe_allow_html=True` còn lại (đã xác nhận `pages/3_Ho_so.py`→`utils/ui.py` escape đúng), thêm test XSS chốt hành vi, export JSON dự phòng.
 - `utils/history.append_meal_once()` giờ không còn trang nào gọi (đã thay bằng `SessionRepository.save_meal`), chỉ còn test dùng — cân nhắc bỏ khi dọn dẹp.
 

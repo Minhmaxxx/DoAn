@@ -430,6 +430,25 @@ bắt được, giống hệt bài học của Giai đoạn 0):
     app. Đây là điểm rủi ro nhất về trải nghiệm, phải thử trên máy thật.
 14. Project Supabase sau khi bị pause và restore: dữ liệu còn nguyên.
 
+### Tình trạng tính đến 2026-08-20
+
+| # | Tình trạng | Bằng chứng |
+|---|---|---|
+| 1 | **CHƯA CHẠY** | Cần gọi PostgREST trực tiếp bằng JWT của tài khoản A để đọc dữ liệu B. Đây là bài kiểm chứng RLS, quan trọng nhất về mặt an toàn trong số các bài còn lại |
+| 2 | **PASS** | Production, 2026-08-20. Sau F5: `Thấy cookie phiên: true`, hồ sơ vừa chỉnh còn nguyên |
+| 3 | Chưa chạy | |
+| 4 | **PASS** | Hai trình duyệt thật, 2026-08-20. Gồm cả vế sửa dữ liệu ở máy A rồi tải lại máy B thấy ngay |
+| 5 | Chưa chạy | |
+| 6 | Một phần | Refresh chạy đúng ở mỗi lần tải trang; chưa thử token hết hạn thật |
+| 7 | **PASS** | `delete from auth.users` xóa theo cascade cả `profiles`, quan sát trực tiếp 2026-08-20 |
+| 8 | **PASS** | AppTest 5 trang ở chế độ khách, chạy trong release gate |
+| 9 | PASS ở mức code | `tests/test_pages.py` chốt rằng render một trang không dựng Supabase client; chưa đo bằng cách mở app thật rồi kiểm `auth.users` |
+| 10 | Chưa chạy | |
+| 11 | PASS ở mức unit test | `saved_meal_signatures` + `uuid5` theo nội dung bản ghi |
+| 12 | **PASS** | Quan sát trực tiếp 2026-08-20: liên kết vào identity Google đã thuộc tài khoản khác bị máy chủ từ chối, app hiện đúng lý do và không trộn dữ liệu |
+| 13 | Chưa chạy | Rủi ro trải nghiệm cao nhất còn lại |
+| 14 | Chưa chạy | |
+
 ## 13. Rủi ro và phương án dự phòng
 
 | Rủi ro | Xử lý |
