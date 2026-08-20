@@ -134,6 +134,26 @@ def test_a_write_the_browser_never_takes_is_reported_not_swallowed(fake_st, monk
     assert cookies.unconfirmed_writes() == {"nv_refresh_token": "set"}
 
 
+def test_rotating_a_value_the_browser_already_holds_is_not_a_refusal(
+    fake_st, monkeypatch
+):
+    """Supabase rotates the refresh token on every restore.
+
+    Comparing values would report a perfectly healthy write as refused on
+    every page load, because the component's snapshot is at best one run
+    behind the write it is supposed to confirm.
+    """
+    manager = FakeCookieManager({"nv_refresh_token": "rt-old"})
+    _install_manager(monkeypatch, manager)
+
+    cookies.init_cookie_manager()
+    cookies.write_cookie("nv_refresh_token", "rt-new", max_age_days=180)
+    for _ in range(cookies._RETRY_RUNS + 1):
+        cookies.init_cookie_manager()
+
+    assert cookies.unconfirmed_writes() == {}
+
+
 def test_a_no_retry_write_is_never_replayed(fake_st, monkeypatch):
     """The PKCE verifier is rewritten by the render itself, so it opts out.
 

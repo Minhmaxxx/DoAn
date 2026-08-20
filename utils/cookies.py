@@ -130,7 +130,13 @@ def _replay_pending(manager) -> None:
         if entry["op"] == "delete":
             confirmed = name not in reported
         else:
-            confirmed = reported.get(name) == entry["value"]
+            # Presence, not value equality. The component's snapshot refreshes
+            # a run behind at best, and the refresh token rotates on every
+            # restore, so comparing values reported a healthy write as refused
+            # on every single page load. The failure this queue exists for —
+            # a write cancelled by st.rerun() — leaves the name absent
+            # entirely, which presence still catches.
+            confirmed = name in reported
 
         if confirmed or entry["runs_left"] <= 0:
             del pending[name]

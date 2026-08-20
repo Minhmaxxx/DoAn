@@ -449,6 +449,55 @@ def test_bootstrap_session_reports_a_failed_google_link(monkeypatch, fake_st):
     assert "sync_error" in fake_st.session_state
 
 
+def test_bootstrap_session_surfaces_an_error_supabase_puts_in_the_url(
+    monkeypatch, fake_st
+):
+    """A rejected link comes back as ?error=, never as ?code=.
+
+    Ignoring it is what made a failed Google link look like nothing happening
+    at all: the app quietly restored the anonymous session it already had and
+    re-rendered the same page.
+    """
+    fake_st.cookie_store.store[auth.SESSION_COOKIE_NAME] = "rt-1"
+    fake_st.query_params["error"] = "server_error"
+    fake_st.query_params["error_description"] = (
+        "Identity+is+already+linked+to+another+user"
+    )
+    fake_st.cookie_store.store["nv_pkce_supabase.auth.token-code-verifier"] = "v1"
+    client = FakeAuthClient()
+    client.refresh_session_result = SimpleNamespace(
+        user=SimpleNamespace(id="anon-7", is_anonymous=True),
+        session=SimpleNamespace(refresh_token="rt-2"),
+    )
+    monkeypatch.setattr(auth, "get_client", lambda: SimpleNamespace(auth=client))
+
+    # The anonymous account is still perfectly usable, so the failed link must
+    # not also drop the user to guest.
+    assert auth.bootstrap_session() == "anon-7"
+    assert "already linked to another user" in fake_st.session_state["sync_error"]
+    assert "already linked" in fake_st.session_state["last_oauth_result"]
+    # The stranded verifier would otherwise sit there until it expired.
+    assert "nv_pkce_supabase.auth.token-code-verifier" not in fake_st.cookie_store.store
+    assert "error" not in fake_st.query_params
+
+
+def test_a_spent_auth_code_is_dropped_even_when_the_exchange_fails(
+    monkeypatch, fake_st
+):
+    """Keeping ?code= means every later rerun retries a single-use code and
+    replaces the real error with a confusing second one."""
+    fake_st.query_params["code"] = "auth-code-123"
+    client = FakeAuthClient()
+    client.exchange_code_for_session = lambda params: (_ for _ in ()).throw(
+        RuntimeError("expired")
+    )
+    monkeypatch.setattr(auth, "get_client", lambda: SimpleNamespace(auth=client))
+
+    assert auth.bootstrap_session() is None
+    assert "code" not in fake_st.query_params
+    assert "expired" in fake_st.session_state["last_oauth_result"]
+
+
 def test_sync_status_distinguishes_anonymous_from_linked(fake_st):
     fake_st.session_state.auth_user = {"id": "u", "is_anonymous": True}
     assert auth.sync_status() == "anonymous"

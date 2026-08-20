@@ -412,6 +412,55 @@ def cookie_diagnostics() -> dict:
     }
 
 
+def _record_oauth_result(text: str) -> None:
+    """Keep the last Google outcome where the user can still find it.
+
+    `sync_error` is popped by whichever page renders first, so a message shown
+    on the landing page is gone by the time the user reaches the profile page
+    to look for it. This copy survives navigation and feeds the diagnostics
+    panel.
+    """
+    st.session_state["last_oauth_result"] = text
+
+
+def _oauth_error_from_query() -> Optional[str]:
+    """The error Supabase appends when an OAuth round trip fails.
+
+    Supabase returns to the app with either `?code=` or
+    `?error=...&error_description=...`. Not reading the second one is what
+    made a failed Google link look like nothing happening at all: the app
+    silently restored the anonymous session it already had and rendered the
+    same page. The most common cause is a link attempt against a Google
+    identity that already belongs to another account.
+    """
+    for key in ("error_description", "error_code", "error"):
+        value = st.query_params.get(key)
+        if isinstance(value, str) and value:
+            return value.replace("+", " ")
+    return None
+
+
+def _discard_pkce_verifier() -> None:
+    """Drop a verifier stranded by an OAuth round trip that never came back.
+
+    Left alone it sits in the browser until it expires, and shows up in the
+    diagnostics as an OAuth flow still in progress.
+    """
+    for name in list(cookies.all_cookies()):
+        if name.startswith(_CodeVerifierCookieStorage._PREFIX):
+            cookies.delete_cookie(name)
+
+
+def oauth_diagnostics() -> dict:
+    """What the Google round trip is actually configured to do, and how it went."""
+    return {
+        "redirect_to": site_url() or "(Site URL trong dashboard Supabase)",
+        "auth_code_in_url": bool(st.query_params.get("code")),
+        "error_in_url": _oauth_error_from_query() or "không có",
+        "last_result": st.session_state.get("last_oauth_result", "chưa thử lần nào"),
+    }
+
+
 def sync_status() -> str:
     """One of "guest", "anonymous" or "linked" — the three states in
     STORAGE_PLAN.md section 4. Pages must never describe "anonymous" as
@@ -461,6 +510,22 @@ def bootstrap_session() -> Optional[str]:
         # script as soon as the component answers.
         return None
 
+    if not auth_code:
+        oauth_error = _oauth_error_from_query()
+        if oauth_error:
+            # Report it and carry on restoring whatever session already
+            # existed, rather than returning: a failed *link* leaves the
+            # anonymous account perfectly usable, and silently dropping the
+            # user to guest on top of the failure would be worse.
+            st.session_state["sync_error"] = (
+                f"Google không hoàn tất được: {oauth_error}. "
+                "Nếu tài khoản Google này đã liên kết ở nơi khác, hãy Đăng xuất "
+                "rồi chọn *Đăng nhập bằng Google* thay vì liên kết lần nữa."
+            )
+            _record_oauth_result(f"Máy chủ trả về lỗi: {oauth_error}")
+            _discard_pkce_verifier()
+            st.query_params.clear()
+
     if not auth_code and not _session_cookie():
         return None
 
@@ -485,7 +550,13 @@ def bootstrap_session() -> Optional[str]:
             st.session_state["sync_error"] = (
                 f"Không hoàn tất được đăng nhập Google: {type(error).__name__}: {error}"
             )
+            _record_oauth_result(f"{type(error).__name__}: {error}")
+            # Drop ?code= even on failure: the code is single-use, so retrying
+            # it on every rerun only replaces the real error with a confusing
+            # second one.
+            st.query_params.clear()
             return None
+        _record_oauth_result("Thành công")
         # Drop ?code= so a refresh doesn't retry an already-spent auth code.
         st.query_params.clear()
         return user_id

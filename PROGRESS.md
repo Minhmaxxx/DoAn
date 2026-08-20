@@ -1,7 +1,7 @@
 # NutriVision Progress Record
 
 **Cập nhật:** 2026-08-20<br>
-**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật. Lưu trữ đa thiết bị (`STORAGE_PLAN.md`): Giai đoạn 0, A và C xong 2026-08-19 — đồng bộ Supabase đã nối vào app dưới dạng **opt-in** ("Bật đồng bộ"), chế độ khách vẫn là mặc định; 6 lỗi phát hiện nhờ chạy thật đã vá. Liên kết Google đã xác minh trên trình duyệt thật là giữ nguyên `user_id`; thử tiếp trên bản deploy thì lộ ra thiếu hẳn đường **đăng nhập** ở thiết bị thứ hai, đã bổ sung `sign_in_with_oauth()`. Ngày 2026-08-20 đo trên production: kênh component đọc được cookie (9 cookie, so với 0 qua `st.context`), nhưng phát hiện chiều *ghi* bị `st.rerun()` nuốt — đây mới là nguyên nhân F5 mất hồ sơ và sinh tài khoản trùng; đã viết lại `utils/cookies.py` với hàng đợi ghi có retry. Còn nợ: kiểm thử thật bài 2 (F5) và vế thiết bị thứ hai của bài 4, bài 3/5/13, và Giai đoạn D (hardening XSS, export JSON).
+**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật. Lưu trữ đa thiết bị (`STORAGE_PLAN.md`): Giai đoạn 0, A và C xong 2026-08-19 — đồng bộ Supabase đã nối vào app dưới dạng **opt-in** ("Bật đồng bộ"), chế độ khách vẫn là mặc định; 6 lỗi phát hiện nhờ chạy thật đã vá. Liên kết Google đã xác minh trên trình duyệt thật là giữ nguyên `user_id`; thử tiếp trên bản deploy thì lộ ra thiếu hẳn đường **đăng nhập** ở thiết bị thứ hai, đã bổ sung `sign_in_with_oauth()`. Ngày 2026-08-20 đo trên production: kênh component đọc được cookie (9 cookie, so với 0 qua `st.context`), nhưng phát hiện chiều *ghi* bị `st.rerun()` nuốt — đây mới là nguyên nhân F5 mất hồ sơ và sinh tài khoản trùng; đã viết lại `utils/cookies.py` với hàng đợi ghi có retry. **Bài 2 (F5 giữ đăng nhập) đã PASS trên production.** Lần đo đó lộ tiếp lỗi OAuth: app không đọc `?error=` mà Supabase trả về, nên liên kết Google bị từ chối trông như không có gì xảy ra — đã sửa. Còn nợ: vế thiết bị thứ hai của bài 4, bài 3/5/13, và Giai đoạn D (hardening XSS, export JSON).
 
 Tài liệu này lưu lại các quyết định, kết quả kiểm tra và bằng chứng có thể dùng khi viết báo cáo hoặc tiếp tục phát triển.
 
@@ -634,6 +634,36 @@ Bài học rút ra: bài 4 của ma trận mục 12 được đánh dấu pass q
 
 **Chưa xác minh trên production:** vẫn cần deploy rồi chạy lại bài 2 (F5 giữ đăng nhập) và bài 4 vế hai (đăng nhập ở thiết bị khác).
 
+### 2026-08-20 - Bài 2 PASS; lỗi OAuth do app không đọc `?error=` Supabase trả về
+
+**Bài 2 (F5 giữ đăng nhập) - PASS trên production.** Đo sau khi F5: `Trạng thái: anonymous`, `Thấy cookie phiên: true`, độ dài token 12, và hồ sơ vừa chỉnh vẫn còn. Hàng đợi ghi cookie đã giải quyết đúng chỗ hỏng. Đây là bài mà bản 3 `STORAGE_PLAN.md` coi là *vấn đề cốt lõi* của cả kế hoạch — nay đã có bằng chứng chạy thật trên đúng môi trường triển khai.
+
+**Nhưng cùng lần đo đó lộ hai vấn đề.**
+
+**Vấn đề 1 - báo động giả `Trình duyệt từ chối ghi: nv_refresh_token`.** Cookie có thật (`Thấy cookie phiên: true`) mà vẫn bị báo là bị từ chối. Nguyên nhân: Supabase **xoay refresh token ở mỗi lần `refresh_session()`**, nên mỗi lần tải trang lại ghi một giá trị mới; còn snapshot của component thì chậm ít nhất một vòng chạy. So sánh theo *giá trị* nên không bao giờ khớp. Sửa: xác nhận theo **sự tồn tại của tên cookie**, không theo giá trị. Lỗi mà hàng đợi sinh ra để bắt — ghi bị `st.rerun()` huỷ — vẫn bị bắt, vì khi đó tên cookie không hề tồn tại.
+
+**Vấn đề 2 - đăng nhập/liên kết Google "chẳng có gì xảy ra".** Triệu chứng: bấm sang Google, quay về, trạng thái vẫn `anonymous`, hàng trong `profiles` vẫn `email = NULL, is_anonymous = true`, cookie PKCE nằm lại không ai dùng. Người dùng thử cả hai tài khoản Gmail, đều vậy.
+
+**Nguyên nhân:** Supabase quay về app với **một trong hai**: `?code=...` khi thành công, hoặc `?error=...&error_description=...` khi thất bại. `bootstrap_session()` chỉ đọc `?code=`. Không có `code` thì nó rơi xuống nhánh khôi phục cookie, khôi phục lại đúng tài khoản ẩn danh đang có, và render lại y hệt trang cũ — nhìn từ ngoài đúng là *không có gì xảy ra*. Thông báo lỗi thật của máy chủ bị vứt đi ngay tại URL.
+
+Vì sao lần này lỗi: `link_identity()` bị từ chối khi identity Google đó **đã thuộc về tài khoản khác**. Cả hai Gmail đều đã bị hai tài khoản trùng lặp sinh ra trước đó (mục nhật ký cùng ngày ở trên) chiếm chỗ, nên mọi lần liên kết tiếp đều chỉ có thể thất bại.
+
+**Sửa:**
+
+- `_oauth_error_from_query()` đọc `error_description` / `error_code` / `error`, đặt vào `sync_error` kèm gợi ý dùng *Đăng nhập bằng Google* thay vì liên kết lần nữa, rồi dọn query param và cookie verifier bị bỏ lại. **Không** hạ người dùng xuống khách: liên kết hỏng thì tài khoản ẩn danh vẫn dùng tốt.
+- `?code=` giờ bị xoá **cả khi exchange thất bại**. Trước đó code đã tiêu vẫn nằm lại URL và bị thử lại ở mọi rerun, thay lỗi thật bằng một lỗi thứ hai khó hiểu hơn.
+- `_record_oauth_result()` giữ kết quả Google gần nhất trong session state. `sync_error` bị trang nào render trước pop mất, nên thông báo hiện ở trang chủ đã biến mất trước khi người dùng sang trang Hồ sơ tìm nó.
+- `oauth_diagnostics()` + bảng chẩn đoán hiển thị: địa chỉ `redirect_to` đang dùng, có `?code=` hay không, lỗi trên URL, và kết quả Google gần nhất.
+- Trạng thái `anonymous` nay có thêm mục *"Tôi đã có tài khoản Google từ trước"* mở ra nút đăng nhập. Trước đó lối thoát duy nhất là đăng xuất rồi mới thấy nút, mà chỉ có một dòng caption nói điều đó.
+
+| Lệnh/kiểm tra | Kết quả |
+|---|---|
+| `.venv311\Scripts\python.exe -m pytest -q` | `158 passed, 1 skipped` |
+| `.venv311\Scripts\python.exe test_imports.py` | `All smoke checks passed` |
+| Bài 2 (F5 giữ đăng nhập) trên production | **PASS** |
+
+**Bài học:** hai lần trước rút ra "kiểm chứng trên đúng môi trường triển khai" và "chẩn đoán phải đo cả hai chiều". Lần này thêm một dạng khác: **im lặng vì không đọc kênh báo lỗi có sẵn**. Máy chủ đã nói rõ lý do ngay trên URL suốt từ đầu; app chỉ đơn giản là không nhìn. Khi một luồng "không có gì xảy ra", việc đầu tiên phải làm là kiểm tra xem có kênh phản hồi nào đang bị bỏ qua hay không, trước khi đi đoán nguyên nhân.
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
 ### Phase C5 - Kiểm tra thủ công còn lại
@@ -652,7 +682,7 @@ Bài học rút ra: bài 4 của ma trận mục 12 được đánh dấu pass q
 - **Việc người dùng phải làm - dọn dữ liệu rác:** chạy `delete from auth.users where is_anonymous = true;` trong SQL Editor của Supabase. Lệnh này xóa các tài khoản ẩn danh sinh ra trong spike và trong các lần "Bật đồng bộ" bị mất cookie (gồm cả hai dòng "Lăng Nhật Minh" trùng nhau, xóa theo cascade), cộng một tài khoản do spike đo độ dài refresh token ngày 2026-08-20 tạo ra. Tài khoản Google đã liên kết có `is_anonymous = false` nên không bị đụng tới.
 - **Việc người dùng phải làm để cron chạy được:** thêm hai GitHub repo secrets ở Settings → Secrets and variables → Actions: `SUPABASE_URL` và `SUPABASE_PUBLISHABLE_KEY`. Chưa thêm thì workflow chỉ cảnh báo rồi bỏ qua.
 - **Kiểm thử thủ công còn nợ:** bài 4 mới xong **vế đầu** (liên kết Google giữ nguyên `user_id`, xác minh bằng SQL). Vế quyết định — đăng nhập lại trên **thiết bị thứ hai** và thấy đủ dữ liệu cũ — vẫn chưa chạy; chính vế này đã lộ ra lỗ hổng thiếu `sign_in_with_oauth()`. Còn bài 2 (F5 giữ đăng nhập), 3 (mở lại từ icon PWA), 5 (redeploy không mất phiên) và 13 (PWA standalone trên iPhone).
-- Bài 2 vẫn là bài đáng lo nhất: nó kiểm chứng cookie refresh-token có thực sự sống sót qua reload hay không — tức toàn bộ lý do bản 3 của kế hoạch bỏ `st.login()`. Sau bản vá 2026-08-20, dấu hiệu cần nhìn trong "Chẩn đoán đồng bộ" là `Thấy cookie phiên: true` **sau khi F5**, và `Trình duyệt từ chối ghi: không có`.
+- ~~Bài 2~~ **đã pass 2026-08-20** trên production (xem nhật ký cùng ngày). Ghi chú cũ giữ lại làm bối cảnh: bài 2 từng là bài đáng lo nhất: nó kiểm chứng cookie refresh-token có thực sự sống sót qua reload hay không — tức toàn bộ lý do bản 3 của kế hoạch bỏ `st.login()`. Sau bản vá 2026-08-20, dấu hiệu cần nhìn trong "Chẩn đoán đồng bộ" là `Thấy cookie phiên: true` **sau khi F5**, và `Trình duyệt từ chối ghi: không có`.
 - Giai đoạn D: rà 23 chỗ `unsafe_allow_html=True` còn lại (đã xác nhận `pages/3_Ho_so.py`→`utils/ui.py` escape đúng), thêm test XSS chốt hành vi, export JSON dự phòng.
 - `utils/history.append_meal_once()` giờ không còn trang nào gọi (đã thay bằng `SessionRepository.save_meal`), chỉ còn test dùng — cân nhắc bỏ khi dọn dẹp.
 

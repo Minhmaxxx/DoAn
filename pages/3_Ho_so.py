@@ -350,6 +350,15 @@ def _render_sync_diagnostics():
                 "Qua st.context (luôn 0 trên Cloud)": info["via_st_context"],
             }
         )
+        oauth = auth.oauth_diagnostics()
+        st.write(
+            {
+                "Quay về địa chỉ": oauth["redirect_to"],
+                "Có ?code= trên URL": oauth["auth_code_in_url"],
+                "Lỗi trên URL": oauth["error_in_url"],
+                "Kết quả Google gần nhất": oauth["last_result"],
+            }
+        )
         st.caption(
             "`Component đã trả lời: False` chỉ là trạng thái thoáng qua khi vừa "
             "tải trang. Nếu nó vẫn False sau vài giây thì component cookie không "
@@ -436,10 +445,16 @@ def _render_sync_section(status: str):
             "thiết bị là mất. Liên kết Google để dùng trên máy khác."
         )
         st.caption(
-            "Nếu tài khoản Google này đã liên kết ở thiết bị khác, hãy **Đăng xuất** "
-            "rồi chọn *Đăng nhập bằng Google* — liên kết lần hai sẽ báo lỗi và "
-            "không lấy được dữ liệu cũ."
+            "Nếu tài khoản Google này **đã** liên kết ở nơi khác thì liên kết lần "
+            "hai sẽ bị máy chủ từ chối. Trường hợp đó dùng *Đăng nhập bằng Google* "
+            "bên dưới để lấy lại tài khoản cũ."
         )
+        with st.expander("Tôi đã có tài khoản Google từ trước"):
+            st.caption(
+                "Bỏ tài khoản ẩn danh vừa tạo và mở lại tài khoản Google cũ. "
+                "Dữ liệu vừa lưu vào tài khoản ẩn danh sẽ không đi theo."
+            )
+            _render_google_signin_button()
     else:
         st.success("Đã liên kết Google — đăng nhập trên thiết bị khác để xem dữ liệu.")
 
