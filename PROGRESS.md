@@ -664,6 +664,26 @@ Vì sao lần này lỗi: `link_identity()` bị từ chối khi identity Google
 
 **Bài học:** hai lần trước rút ra "kiểm chứng trên đúng môi trường triển khai" và "chẩn đoán phải đo cả hai chiều". Lần này thêm một dạng khác: **im lặng vì không đọc kênh báo lỗi có sẵn**. Máy chủ đã nói rõ lý do ngay trên URL suốt từ đầu; app chỉ đơn giản là không nhìn. Khi một luồng "không có gì xảy ra", việc đầu tiên phải làm là kiểm tra xem có kênh phản hồi nào đang bị bỏ qua hay không, trước khi đi đoán nguyên nhân.
 
+### 2026-08-20 - `code challenge does not match` - hai URL OAuth cùng tranh một cookie
+
+**Triệu chứng:** `AuthApiError: code challenge does not match previously saved code verifier`. Khác hẳn các lần trước ở chỗ đây là lỗi **có nội dung** — nhờ bản vá đọc `?error=` và giữ `last_oauth_result` ngay trước đó. Exchange đã chạy, đã tìm thấy verifier, chỉ là verifier sai.
+
+**Nguyên nhân:** mỗi lần dựng URL OAuth (`sign_in_with_oauth()` hoặc `link_identity()`) sinh một verifier mới và **đè lên cùng một cookie** `nv_pkce_supabase.auth.token-code-verifier`. Vậy URL hiển thị trên màn hình và cookie trong trình duyệt bắt buộc phải do **cùng một lần gọi** sinh ra rồi để yên. Có hai cách làm hỏng điều đó, và code đang dính cả hai:
+
+1. **Dựng lại URL ở mỗi lần render.** Đây là thay đổi tôi vừa đưa vào cùng ngày, với lý do tưởng là đúng ("URL cache có thể lệch với cookie"). Thực tế nó tạo vòng lặp: ghi cookie mới → component `getAll` thấy cookie đổi → Streamlit rerun → render lại → sinh verifier mới → ghi cookie mới → ... Tới lúc người dùng bấm, cookie đã đi trước URL đang hiển thị vài nhịp. Trước khi có component thì vòng lặp này không tồn tại (cookie ghi bằng `st.html`, đọc bằng `st.context.cookies`, không có kênh phản hồi) — nên cách làm cũ chạy được và tôi tưởng nó đúng.
+2. **Hai URL sống cùng lúc.** Cũng cùng ngày, tôi thêm nút *Đăng nhập bằng Google* vào trạng thái `anonymous`, ngay cạnh nút *Liên kết Google* vốn dựng URL ở mỗi render. Cả hai ghi cùng một cookie trong cùng một vòng chạy; iframe nào chạy sau quyết định nút nào còn dùng được.
+
+**Sửa:** một hàm `_request_oauth(kind)` duy nhất dựng URL, **chỉ chạy khi bấm nút**, lưu đúng **một** URL đang chờ vào `st.session_state["pending_oauth"]`; `_render_pending_oauth()` hiển thị nó. Xin URL mới thì thay thế URL cũ chứ không thêm vào. Nút *Liên kết Google* cũng chuyển sang hai bước như vậy, không còn dựng URL lúc render. `_record_oauth_result()` xoá `pending_oauth` khi vòng OAuth kết thúc, vì lúc đó verifier đã tiêu.
+
+Chốt bằng test `test_only_one_place_mints_a_pkce_verifier` trong `tests/test_pages.py`: `auth.start_google_link` và `auth.start_google_signin` mỗi cái được phép xuất hiện **đúng một lần** trong trang, và cả hai phải nằm trong `_request_oauth`. Đây là bất biến tôi đã phá hai lần trong một ngày nên cần có test giữ.
+
+| Lệnh/kiểm tra | Kết quả |
+|---|---|
+| `.venv311\Scripts\python.exe -m pytest -q` | `159 passed, 1 skipped` |
+| `.venv311\Scripts\python.exe test_imports.py` | `All smoke checks passed` |
+
+**Bài học:** bản sửa buổi sáng ("dựng lại URL mỗi render để URL và cookie luôn khớp") là một cách chữa dựa trên suy đoán chứ không dựa trên số đo, và nó tự tạo ra đúng lỗi mà nó định phòng. Điểm chung với hai mục trước: khi chưa có tín hiệu đo được thì đừng sửa, hãy làm cho lỗi hiện ra trước. Đúng thứ tự đó lần này đã hiệu quả — chính bản vá "hiện lỗi lên" mới lôi được thông báo thật của máy chủ ra.
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
 ### Phase C5 - Kiểm tra thủ công còn lại

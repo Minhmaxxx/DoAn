@@ -179,3 +179,23 @@ def test_guest_mode_never_constructs_a_supabase_client(app_file):
     assert not app.exception, [str(exception) for exception in app.exception]
     assert "_supabase_client" not in app.session_state.filtered_state
     assert app.session_state.filtered_state.get("auth_user") is None
+
+
+def test_only_one_place_mints_a_pkce_verifier():
+    """Building a Google URL writes the single nv_pkce_* cookie.
+
+    Two builds racing each other is the failure behind "code challenge does
+    not match previously saved code verifier": rebuilding on every render lets
+    the cookie move on from the URL already on screen, and offering a link
+    button and a sign-in button as two live URLs at once lets whichever iframe
+    ran last decide which of them still works. Both are avoided by having
+    exactly one builder, called only from a button branch, caching one pending
+    URL — so each entry point must appear exactly once in the page.
+    """
+    source = (ROOT_DIR / "pages" / "3_Ho_so.py").read_text(encoding="utf-8")
+    assert source.count("auth.start_google_link") == 1
+    assert source.count("auth.start_google_signin") == 1
+    # Both live inside _request_oauth(), which is only ever reached from a click.
+    builder = source.split("def _request_oauth")[1].split("\ndef ")[0]
+    assert "auth.start_google_link" in builder
+    assert "auth.start_google_signin" in builder

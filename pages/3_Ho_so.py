@@ -36,6 +36,13 @@ SYNC_META = {
     "linked": "ĐÃ ĐỒNG BỘ",
 }
 
+# At most one Google URL may be outstanding at a time — see _request_oauth().
+OAUTH_PENDING_KEY = "pending_oauth"
+OAUTH_LABELS = {
+    "link": "Tiếp tục tới Google để liên kết",
+    "signin": "Tiếp tục tới Google để đăng nhập",
+}
+
 
 def main():
     profile_saved = st.session_state.pop("profile_saved", False)
@@ -367,40 +374,50 @@ def _render_sync_diagnostics():
         )
 
 
-def _render_google_signin_button():
-    """Sign in with Google to recover an account created on another device.
+def _request_oauth(kind: str) -> None:
+    """Build one Google URL, once, and remember it until the user follows it.
 
-    Two-step on purpose, for two separate reasons:
+    Every build mints a fresh PKCE verifier and overwrites the single
+    `nv_pkce_*` cookie, so the URL on screen and the cookie in the browser
+    must be produced by the same call and then left alone. Two ways of getting
+    that wrong both end in "code challenge does not match previously saved
+    code verifier":
 
-    - The OAuth URL is only built after a click, never during a plain render,
-      so a guest visiting this page still constructs no Supabase client
-      (tests/test_pages.py enforces that).
-    - Building that URL is also what writes the PKCE code_verifier cookie, via
-      a component the browser only runs once this render reaches it. An
-      automatic redirect in the same run raced that: navigating away before
-      the cookie was written left exchange_code_for_session() with no
-      verifier, so the user came back from Google and nothing happened. The
-      user clicking the link themselves is what guarantees the cookie landed
-      first — the same shape as the link flow, which worked for that reason.
+    - Rebuilding on every render. The cookie component reports the changed
+      cookie, Streamlit reruns, the rerun mints another verifier, and so on —
+      by the time the user clicks, the cookie has moved on from the URL they
+      are looking at.
+    - Offering "Liên kết" and "Đăng nhập" as two live URLs at once. Both write
+      the same cookie in the same run, and whichever iframe ran last decided
+      which of the two buttons still worked.
 
-    The URL is rebuilt on every render once requested, never cached in session
-    state. Each call mints a fresh verifier and overwrites the cookie, so a
-    cached URL would carry the code_challenge of a verifier the cookie no
-    longer holds and the exchange would fail. Rebuilding keeps the pair in
-    lockstep, which is exactly what the link button does.
+    Hence exactly one pending URL in session state, replaced (not added to)
+    each time the user asks for a new one.
     """
-    if st.button("Đăng nhập bằng Google", key="google_signin"):
-        st.session_state.google_signin_requested = True
-
-    if not st.session_state.get("google_signin_requested"):
-        return
-
+    builder = auth.start_google_link if kind == "link" else auth.start_google_signin
     try:
-        url = auth.start_google_signin(auth.get_client().auth, auth.site_url())
+        url = builder(auth.get_client().auth, auth.site_url())
     except Exception as error:
-        st.error(f"Không tạo được liên kết đăng nhập: {error}")
+        st.session_state.pop(OAUTH_PENDING_KEY, None)
+        st.error(f"Không tạo được liên kết Google: {error}")
         return
-    st.link_button("Tiếp tục tới Google", url, type="primary", width="stretch")
+    st.session_state[OAUTH_PENDING_KEY] = {"kind": kind, "url": url}
+
+
+def _render_pending_oauth():
+    """Show the one outstanding Google URL, if the user asked for one.
+
+    Deliberately a link the user clicks rather than an automatic redirect:
+    the verifier cookie is written by a component whose JS only runs once the
+    browser reaches it, and redirecting in the same run navigated away before
+    that happened.
+    """
+    pending = st.session_state.get(OAUTH_PENDING_KEY)
+    if not pending:
+        return
+    st.link_button(
+        OAUTH_LABELS[pending["kind"]], pending["url"], type="primary", width="stretch"
+    )
     st.caption("Bấm nút trên để sang Google.")
 
 
@@ -435,7 +452,9 @@ def _render_sync_section(status: str):
                 "Dùng khi bạn đã liên kết Google ở thiết bị khác và muốn lấy lại "
                 "dữ liệu cũ. Dữ liệu chưa lưu trong phiên này sẽ bị thay thế."
             )
-            _render_google_signin_button()
+            if st.button("Đăng nhập bằng Google", key="google_signin"):
+                _request_oauth("signin")
+        _render_pending_oauth()
         return
 
     if status == "anonymous":
@@ -454,21 +473,16 @@ def _render_sync_section(status: str):
                 "Bỏ tài khoản ẩn danh vừa tạo và mở lại tài khoản Google cũ. "
                 "Dữ liệu vừa lưu vào tài khoản ẩn danh sẽ không đi theo."
             )
-            _render_google_signin_button()
+            if st.button("Đăng nhập bằng Google", key="google_signin_anon"):
+                _request_oauth("signin")
     else:
         st.success("Đã liên kết Google — đăng nhập trên thiết bị khác để xem dữ liệu.")
 
     col_link, col_out = st.columns(2)
     with col_link:
         if status == "anonymous":
-            try:
-                url = auth.start_google_link(
-                    auth.get_client().auth, auth.site_url()
-                )
-            except Exception as error:
-                st.error(f"Không tạo được liên kết Google: {error}")
-            else:
-                st.link_button("Liên kết Google", url, width="stretch")
+            if st.button("Liên kết Google", key="google_link", width="stretch"):
+                _request_oauth("link")
     with col_out:
         if st.button("Đăng xuất", width="stretch", key="logout"):
             try:
@@ -478,6 +492,8 @@ def _render_sync_section(status: str):
             auth.logout(client_auth)
             st.session_state.pop("meal_history_loaded", None)
             st.rerun()
+
+    _render_pending_oauth()
 
 
 def _render_bmi_scale(bmi: float):

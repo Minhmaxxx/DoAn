@@ -73,10 +73,12 @@ class _CodeVerifierCookieStorage:
         return cookies.read_cookie(self._PREFIX + key)
 
     def set_item(self, key: str, value: str) -> None:
-        # retry=False: the pages rebuild the OAuth URL on every render, and
-        # each rebuild mints a new verifier. A retry would re-send a stale one
-        # next to the fresh one and could leave the cookie disagreeing with
-        # the code_challenge in the URL the user is about to follow.
+        # retry=False. The verifier must match the code_challenge baked into
+        # the URL the user is about to follow, so it is written exactly once,
+        # in the run that builds that URL, and never re-sent afterwards — a
+        # replay a run or two later could overwrite a newer verifier with an
+        # older one. The retry queue exists for the refresh token, where any
+        # value that lands is correct; that is not true here.
         cookies.write_cookie(
             self._PREFIX + key, value, max_age_days=self._MAX_AGE_DAYS, retry=False
         )
@@ -325,7 +327,7 @@ def logout(client: Optional[SupabaseAuthClient] = None) -> None:
         "llm_runtime_config",
         "meal_signature",
         "saved_meal_signatures",
-        "google_signin_requested",
+        "pending_oauth",
         "_supabase_client",  # drop the cached Client too, not just the id — see get_client()
     ):
         st.session_state.pop(key, None)
@@ -421,6 +423,9 @@ def _record_oauth_result(text: str) -> None:
     panel.
     """
     st.session_state["last_oauth_result"] = text
+    # The round trip is over either way, so the "Tiếp tục tới Google" button
+    # the profile page is holding now points at a spent verifier.
+    st.session_state.pop("pending_oauth", None)
 
 
 def _oauth_error_from_query() -> Optional[str]:
