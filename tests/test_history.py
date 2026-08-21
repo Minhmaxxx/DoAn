@@ -5,8 +5,11 @@ from datetime import datetime, timezone
 import pytest
 
 from utils.history import (
+    EXPORT_FORMAT_VERSION,
     append_meal_once,
+    build_export_payload,
     build_meal_record,
+    export_as_json,
     guess_meal_type,
     meal_uuid,
     record_from_row,
@@ -167,3 +170,85 @@ def test_record_signature_is_stable_across_calls():
         {"foods": [], "total_calories": 400}, at=datetime(2026, 8, 9, 12, 0)
     )
     assert record_signature(record) == record_signature(dict(record))
+
+
+def _export_fixture():
+    profile = {"name": "Lan", "age": 22, "goal": "Duy trì cân nặng"}
+    meals = [
+        {
+            "timestamp": "2026-08-01T08:00:00+07:00",
+            "date": "2026-08-01",
+            "time": "08:00",
+            "meal_type": "Bữa sáng",
+            "foods": [{"display_name": "Phở bò", "portion_multiplier": 1.0}],
+            "totals": {"calories": 450},
+        },
+        {
+            "timestamp": "2026-08-03T12:00:00+07:00",
+            "date": "2026-08-03",
+            "time": "12:00",
+            "meal_type": "Bữa trưa",
+            "foods": [{"display_name": "Cơm tấm", "portion_multiplier": 1.5}],
+            "totals": {"calories": 900},
+        },
+    ]
+    return profile, meals
+
+
+def test_export_payload_carries_a_version_and_the_whole_session():
+    """A file with no version is a file no future reader can trust.
+
+    The meal-record shape has already changed once (record_from_row gained a
+    meal_type fallback), so an importer has to be able to tell which shape it
+    is holding rather than infer it from the keys present.
+    """
+    profile, meals = _export_fixture()
+    payload = build_export_payload(profile, meals)
+
+    assert payload["version"] == EXPORT_FORMAT_VERSION
+    assert payload["profile"] == profile
+    assert payload["meal_count"] == 2
+    assert {meal["date"] for meal in payload["meals"]} == {"2026-08-01", "2026-08-03"}
+    # Newest first, same order the history page shows.
+    assert payload["meals"][0]["date"] == "2026-08-03"
+
+
+def test_export_does_not_hand_out_references_into_session_state():
+    """The payload is handed to st.download_button and outlives the run.
+
+    Sharing the caller's dicts would let a later edit to the profile mutate a
+    document already offered for download, and — worse — let a mutation of
+    the payload reach back into session state.
+    """
+    profile, meals = _export_fixture()
+    payload = build_export_payload(profile, meals)
+
+    payload["profile"]["name"] = "changed"
+    payload["meals"].append({"date": "2026-08-09"})
+
+    assert profile["name"] == "Lan"
+    assert len(meals) == 2
+
+
+def test_export_keeps_vietnamese_readable_in_the_file():
+    """ensure_ascii would turn "Bữa trưa" into backslash-u escapes.
+
+    The export is meant to be openable in a text editor, not only by a
+    matching importer, so the accents have to survive as characters.
+    """
+    profile, meals = _export_fixture()
+    text = export_as_json(profile, meals)
+
+    assert "Bữa trưa" in text
+    assert "\\u" not in text
+
+    import json
+
+    assert json.loads(text)["meal_count"] == 2
+
+
+def test_exporting_an_empty_history_still_produces_a_valid_document():
+    """Guest mode with nothing logged must not raise on the export button."""
+    payload = build_export_payload({}, [])
+    assert payload["meal_count"] == 0
+    assert payload["meals"] == []

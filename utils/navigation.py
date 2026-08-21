@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
 
 from utils.auth import sync_status
@@ -60,7 +62,7 @@ def render_app_shell(current_page, landing_page, user_pages) -> None:
             <div class="rail-note">
                 <span>12 món Việt</span>
                 <strong>YOLO + HITL</strong>
-                <small>{SYNC_NOTE[sync_status()]}</small>
+                <small>{escape(SYNC_NOTE[sync_status()])}</small>
             </div>
             """,
             unsafe_allow_html=True,

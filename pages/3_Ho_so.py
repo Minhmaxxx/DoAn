@@ -4,6 +4,7 @@ Collects user's biometric data and computes health metrics (BMI, BMR, TDEE).
 """
 
 import sys
+from html import escape
 from pathlib import Path
 
 import streamlit as st
@@ -184,10 +185,10 @@ def main():
 
         # BMI Card
         st.markdown(f"""
-        <div class="metric-card" style="border-left: 4px solid {bmi_color};">
+        <div class="metric-card" style="border-left: 4px solid {escape(bmi_color)};">
             <div class="metric-label">BMI</div>
-            <div class="metric-value" style="color: {bmi_color};">{bmi}</div>
-            <div class="metric-unit">{bmi_cat}</div>
+            <div class="metric-value" style="color: {escape(bmi_color)};">{bmi:.1f}</div>
+            <div class="metric-unit">{escape(bmi_cat)}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -215,7 +216,7 @@ def main():
             f"{goal_info['calorie_change']:+.0f} kcal vs TDEE",
         )
         col_t2.markdown(
-            f"<div class='goal-desc'>{goal_info['description']}</div>",
+            f"<div class='goal-desc'>{escape(goal_info['description'])}</div>",
             unsafe_allow_html=True,
         )
 
@@ -510,7 +511,7 @@ def _render_bmi_scale(bmi: float):
             <div class="bmi-segment seg-overweight">Thừa cân<br><small>23–27.5</small></div>
             <div class="bmi-segment seg-obese">Béo phì<br><small>&gt;27.5</small></div>
         </div>
-        <div class="bmi-indicator" style="left: {pct}%;">▲</div>
+        <div class="bmi-indicator" style="left: {pct:.2f}%;">▲</div>
     </div>
     """, unsafe_allow_html=True)
 

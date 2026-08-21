@@ -14,7 +14,7 @@ ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
 from utils.nutrition import calculate_goal_calories, calculate_bmr, calculate_tdee
-from utils.history import sort_meal_history, vietnam_now
+from utils.history import export_as_json, sort_meal_history, vietnam_now
 from utils.auth import sync_status
 from utils.repository import get_repository
 from utils.visualization import daily_calorie_chart, macro_donut_chart
@@ -146,6 +146,22 @@ def main():
                 st.metric("Carb / Protein / Fat", f"{total_carb:.0f} / {total_protein:.0f} / {total_fat:.0f}g")
     else:
         st.info("Chưa có bữa ăn trong 7 ngày qua.")
+
+    # ── Export ───────────────────────────────────────────────────────────────
+    with st.expander("Xuất dữ liệu (JSON)"):
+        st.caption(
+            "Tải toàn bộ hồ sơ và lịch sử bữa ăn về máy. Chế độ khách chỉ giữ "
+            "dữ liệu trong phiên hiện tại, còn đồng bộ đám mây phụ thuộc vào "
+            "tài khoản và một project có thể bị tạm dừng — bản tải về là bản "
+            "sao duy nhất không phụ thuộc cả hai."
+        )
+        st.download_button(
+            "Tải file JSON",
+            data=export_as_json(st.session_state.user_profile, history),
+            file_name=f"nutrivision-{vietnam_now().strftime('%Y%m%d')}.json",
+            mime="application/json",
+            width="stretch",
+        )
 
     # ── Clear History ────────────────────────────────────────────────────────
     with st.expander("Xóa lịch sử"):

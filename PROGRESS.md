@@ -1,7 +1,7 @@
 # NutriVision Progress Record
 
 **Cập nhật:** 2026-08-20<br>
-**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật. **Lưu trữ đa thiết bị (`STORAGE_PLAN.md`) đã hoàn tất về chức năng và xác minh trên production ngày 2026-08-20:** đồng bộ Supabase dạng opt-in ("Bật đồng bộ"), chế độ khách vẫn là mặc định, liên kết Google giữ nguyên `user_id`, bài 2 (F5 giữ đăng nhập) và bài 4 (đăng nhập ở thiết bị thứ hai, sửa dữ liệu ở máy này thấy ngay ở máy kia) đều PASS trên hai trình duyệt thật. Tổng cộng 12 lỗi tích hợp đã vá, sáu lỗi cuối chỉ lộ ra trên đúng môi trường triển khai. Còn nợ: bài 3/5/13 (biến thể PWA và redeploy), hai GitHub secrets cho cron chống pause, và Giai đoạn D (hardening XSS, export JSON).
+**Trạng thái hiện tại:** Phase A, B và D hoàn tất; C1-C4 pass, OpenAI live smoke đã pass; UI desktop/mobile và PWA đã pass trên Edge DevTools, C5 còn kiểm tra camera/touch trên điện thoại thật. **Lưu trữ đa thiết bị (`STORAGE_PLAN.md`) đã hoàn tất về chức năng và xác minh trên production ngày 2026-08-20:** đồng bộ Supabase dạng opt-in ("Bật đồng bộ"), chế độ khách vẫn là mặc định, liên kết Google giữ nguyên `user_id`, bài 2 (F5 giữ đăng nhập) và bài 4 (đăng nhập ở thiết bị thứ hai, sửa dữ liệu ở máy này thấy ngay ở máy kia) đều PASS trên hai trình duyệt thật. Tổng cộng 12 lỗi tích hợp đã vá, sáu lỗi cuối chỉ lộ ra trên đúng môi trường triển khai. Cron chống pause đã chạy thật và bài 1a (RLS đang bật) đã đạt ngày 2026-08-21. **Giai đoạn D xong ngày 2026-08-21** (rà HTML thô, test XSS hành vi + guard tĩnh, xuất JSON dự phòng). Còn nợ: bài 3/5/10/13/14 — đều là biến thể môi trường cần thiết bị thật, trong đó bài 13 (PWA standalone trên iPhone) đáng ưu tiên nhất.
 
 Tài liệu này lưu lại các quyết định, kết quả kiểm tra và bằng chứng có thể dùng khi viết báo cáo hoặc tiếp tục phát triển.
 
@@ -767,6 +767,40 @@ Câu 1 (`relrowsecurity`) ban đầu không có kết quả — SQL Editor của
 
 Rút ra cho lần sau: khi kiểm chứng bằng SQL Editor phải chạy từng câu một, hoặc gộp thành một câu bằng `union all`, chứ chạy cả file thì chỉ thấy câu cuối.
 
+### 2026-08-21 - Giai đoạn D: rà HTML thô, chốt bằng test hành vi, thêm xuất JSON
+
+**Bối cảnh.** Toàn bộ giao diện của app là HTML tự viết qua `st.markdown(..., unsafe_allow_html=True)` — thanh điều hướng, các thẻ số liệu, lưới món ăn đều không dùng widget mặc định của Streamlit vì widget không dựng được bố cục này. Hệ quả là việc escape không phải chi tiết phụ mà là thứ chịu lực: sót một chỗ là trang tự chạy mã của dữ liệu.
+
+**Kết quả rà soát: 30 vị trí `unsafe_allow_html=True` trong 7 file, không có lỗ hổng đang sống.** Phân loại:
+
+| Loại | Số lượng | Rủi ro |
+| --- | --- | --- |
+| HTML tĩnh, không nội suy gì | phần lớn | Không |
+| Nội suy số có format (`{x:.0f}`) | vài chỗ | Không — format số không thể sinh ra thẻ |
+| Nội suy hằng số từ `config` / `utils.nutrition` | 4 chỗ | Chưa thủng, nhưng không ai escape |
+| Nội suy dữ liệu người dùng | các chỗ còn lại | Đã escape sẵn từ trước |
+
+Đã sửa 4 chỗ nhóm thứ ba: `config.FOOD_DISPLAY_NAMES` (`pages/1_Phan_tich_anh.py`), `goal_info['description']` và `bmi_color`/`bmi_cat` (`pages/3_Ho_so.py`), `SYNC_NOTE[sync_status()]` (`utils/navigation.py`). Thêm `{pct:.2f}` cho chỉ báo thang BMI.
+
+Lý do sửa dù chưa thủng, và đây là điểm đáng ghi: bốn chỗ đó an toàn vì **hôm nay** giá trị là hằng số do mình viết. Đó là một sự thật về *dữ liệu*, không phải về *code*. Nó ngừng đúng một cách lặng lẽ — chẳng hạn ngày nào đó `FOOD_DISPLAY_NAMES` đọc từ file cấu hình. Escape hết thì quy tắc trở thành máy móc, không còn phải phán đoán từng chỗ.
+
+**Bề mặt tấn công thật sự có, không phải giả định.** Hai đường dữ liệu người dùng chạm tới HTML: (1) `user_profile["name"]` là ô nhập tự do, đi vào tiêu đề của *mọi* trang qua `render_page_header()`, nên sót một chỗ ở đó là phản chiếu trên toàn app; (2) kể từ khi có đồng bộ đám mây, `meal_type` và `foods[].display_name` được **đọc ngược từ Postgres** chứ không còn chỉ do app này ghi. RLS chặn người lạ ghi vào dòng của mình, nên tình huống thực tế là giá trị do phiên bản app cũ / dòng sửa tay / bản khôi phục ghi ra, chứ không phải payload của kẻ tấn công — nhưng vẫn không được thành markup.
+
+**`tests/test_xss.py` (mới, 9 test).** Hai loại test, hỏng vì hai lý do khác nhau:
+
+- Hai test **hành vi**: nhét `<img src=x onerror="alert(1)">` vào tên hiển thị và vào một bản ghi bữa ăn, chạy trang thật bằng `AppTest`, rồi khẳng định đầu ra chứa `&lt;img src=x onerror=` mà không chứa payload nguyên bản. Vế khẳng định dạng đã escape *phải có* — nếu thiếu, test vẫn xanh trong trường hợp tầm thường là trang không render gì cả. Chọn payload `<img onerror>` thay vì `<script>` vì nó sống sót qua các bộ lọc chỉ biết cắt thẻ script.
+- Bảy test **guard tĩnh** (một per file): dùng `ast` đi vào từng lời gọi có `unsafe_allow_html=True`, lấy f-string đối số đầu, duyệt mọi `FormattedValue`, và bắt lỗi trừ khi placeholder đó (a) gọi `escape(`, (b) có format spec số, hoặc (c) nằm trong `PREBUILT_HTML_NAMES` — danh sách các biến đã chứa HTML dựng sẵn ở nơi khác trong cùng module, mỗi tên kèm chú thích ai escape đầu vào của nó.
+
+Vì sao cần cả hai: test hành vi chỉ chứng minh những payload mà mình *nghĩ ra được*. Guard tĩnh không chứng minh gì về hôm nay, nó tồn tại để lần nội suy **tiếp theo** không lọt vào im lặng. Guard này đã bắt được ngay một chỗ khi viết xong: `{pct}` trong `style="left: {pct}%"` của thang BMI.
+
+**Xuất JSON dự phòng.** `utils/history.build_export_payload()` + `export_as_json()` (hàm thuần, không đụng Streamlit/session state), nút tải trong expander "Xuất dữ liệu (JSON)" ở `pages/2_Lich_su.py`. Lý do cần: chế độ khách là mặc định và mất sạch khi đóng trình duyệt; đồng bộ đám mây sống sót qua đó nhưng phụ thuộc một project free-tier tự pause sau 7 ngày và một tài khoản Google người dùng có thể mất. Bản tải về là bản sao duy nhất không phụ thuộc cả hai.
+
+Hai quyết định trong hàm này đáng ghi: payload có trường `version` (`EXPORT_FORMAT_VERSION = 1`) vì shape của bản ghi bữa ăn **đã đổi một lần rồi** — `record_from_row` từng thêm fallback cho `meal_type` — nên bên đọc phải biết mình đang cầm shape nào chứ không suy đoán từ các khóa có mặt. Và payload `dict(profile)` / `list(meals)` chứ không dùng thẳng tham chiếu: file đã đưa cho `st.download_button` sống lâu hơn lượt chạy, chia sẻ tham chiếu thì một lần sửa hồ sơ sau đó âm thầm đổi nội dung file đang chờ tải, tệ hơn nữa là sửa payload thò ngược vào session state. Có test riêng cho cả hai.
+
+`ensure_ascii=False` để "Bữa trưa" giữ nguyên dấu trong file — bản xuất phải mở được bằng trình soạn thảo, không chỉ bằng một trình nhập khớp định dạng.
+
+**Kiểm chứng:** `.venv311\Scripts\python.exe -m pytest -q` → **172 passed, 1 skipped** (trước Giai đoạn D là 159 passed, 1 skipped; +13 test).
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
 ### Phase C5 - Kiểm tra thủ công còn lại
@@ -783,9 +817,12 @@ Rút ra cho lần sau: khi kiểm chứng bằng SQL Editor phải chạy từng
 
 - Giai đoạn 0, A và C **đã xong**. **Bài 2 (F5 giữ đăng nhập) và bài 4 (đồng bộ đa thiết bị) đều PASS trên production ngày 2026-08-20** — xem nhật ký cùng ngày ở mục 7. Tính năng coi như hoàn tất về mặt chức năng.
 - **Cron chống pause đã xong** (2026-08-20): secrets đã thêm, workflow *Supabase keepalive* chạy xanh cả lần bấm tay lẫn lần theo lịch.
-- **Kiểm thử thủ công còn nợ** — bảng tình trạng đầy đủ 14 bài nằm ở cuối mục 12 `STORAGE_PLAN.md`. **Bài 1a đã đạt** (2026-08-21): cả ba câu `verify_rls.sql` đều đúng kỳ vọng. Chạy lại file này mỗi khi áp lại schema hoặc khôi phục project sau khi bị pause. Bài 1b (tấn công trực diện bằng JWT của tài khoản khác) hoãn có chủ ý, xem lý do trong nhật ký 2026-08-20. Còn lại là biến thể môi trường: bài 3 (mở lại từ icon PWA), bài 5 (redeploy không mất phiên), bài 10 (lưu khi mất mạng), bài 13 (PWA standalone trên iPhone — Safari nghiêm ngặt nhất với cookie nên đây là bài dễ hỏng riêng), bài 14 (pause/restore project).
+- **Kiểm thử thủ công còn nợ** — bảng tình trạng đầy đủ 14 bài nằm ở cuối mục 12 `STORAGE_PLAN.md`. **Bài 1a đã đạt** (2026-08-21): cả ba câu `verify_rls.sql` đều đúng kỳ vọng. Chạy lại file này mỗi khi áp lại schema hoặc khôi phục project sau khi bị pause. Bài 1b (tấn công trực diện bằng JWT của tài khoản khác) hoãn có chủ ý, xem lý do trong nhật ký 2026-08-20. Còn lại là biến thể môi trường: bài 3 (mở lại từ icon PWA), bài 5 (redeploy không mất phiên), bài 10 (lưu khi mất mạng), bài 13 (PWA standalone trên iPhone), bài 14 (pause/restore project).
+  - **Bài 13 là bài đáng làm nhất trong số còn lại**, mất khoảng 5 phút trên máy thật. Lý do ưu tiên: Safari trên iOS xử lý cookie nghiêm ngặt hơn hẳn Chrome, mà cookie chính là chỗ đã hỏng đi hỏng lại suốt quá trình làm phần lưu trữ — nếu còn chỗ nào vỡ thì khả năng cao nằm ở đây. Riêng chế độ standalone (mở từ icon màn hình chính) có thể dùng kho cookie tách khỏi tab Safari thường, nên "đăng nhập trong Safari rồi mở từ icon" không đảm bảo còn phiên.
+  - Các bước: mở app trong Safari trên iPhone → Bật đồng bộ và liên kết Google → Chia sẻ → *Thêm vào MH chính* → đóng hẳn Safari → mở app **từ icon** → kiểm tra trang Hồ sơ còn báo "Đã đồng bộ" và dữ liệu còn nguyên → tắt app khỏi app switcher, mở lại từ icon lần nữa. Nếu mất phiên: chụp lại mục *Chẩn đoán* trên trang Hồ sơ (`cookie_diagnostics` + `oauth_diagnostics`) — đó là đầu vào cần để tìm nguyên nhân.
+  - Bài 5 gần như chắc chắn đạt vì phiên nằm trong cookie trình duyệt chứ không nằm ở server, nhưng vẫn nên xác nhận sau một lần redeploy.
 - **Rủi ro còn lại đã biết:** GitHub tự tắt scheduled workflow sau 60 ngày repo không có hoạt động, nên trước buổi bảo vệ vẫn phải đánh thức và kiểm tra project Supabase thủ công, không tin hoàn toàn vào cron.
-- Giai đoạn D: rà 23 chỗ `unsafe_allow_html=True` còn lại (đã xác nhận `pages/3_Ho_so.py`→`utils/ui.py` escape đúng), thêm test XSS chốt hành vi, export JSON dự phòng.
+- **Giai đoạn D đã xong** (2026-08-21): rà đủ 30 vị trí `unsafe_allow_html=True`, escape 4 chỗ nội suy hằng số, thêm `tests/test_xss.py` (2 test hành vi + 7 guard tĩnh bằng `ast`) và xuất JSON dự phòng ở trang Lịch sử. Xem nhật ký cùng ngày ở mục 7.
 - `utils/history.append_meal_once()` giờ không còn trang nào gọi (đã thay bằng `SessionRepository.save_meal`), chỉ còn test dùng — cân nhắc bỏ khi dọn dẹp.
 
 ### Phase E - Báo cáo và demo

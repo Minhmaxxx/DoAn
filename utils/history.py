@@ -141,3 +141,47 @@ def record_from_row(row: dict) -> dict:
         "foods": row["foods"],
         "totals": row["totals"],
     }
+
+
+EXPORT_FORMAT_VERSION = 1
+
+
+def build_export_payload(profile: dict, meals: list[dict]) -> dict:
+    """Assemble the whole session as one plain-JSON document.
+
+    This is the fallback for the two ways data can vanish. Guest mode is the
+    default and keeps everything in session state, so closing the browser
+    ends it; cloud sync survives that but depends on a free-tier project that
+    pauses after seven days idle and on a Google account the user may lose.
+    An export is the only copy that depends on neither.
+
+    Deliberately a pure function over plain values: no Streamlit, no clock,
+    no session state. `exported_at` is passed in rather than read from
+    vietnam_now() so a test can assert on a fixed document.
+
+    `version` is what makes the file re-importable later. Without it a reader
+    has to guess the shape from its contents, and the meal-record shape has
+    already changed once (meal_type gained a fallback in record_from_row).
+    """
+    return {
+        "app": "NutriVision",
+        "version": EXPORT_FORMAT_VERSION,
+        "exported_at": vietnam_now().isoformat(),
+        "profile": dict(profile),
+        "meal_count": len(meals),
+        "meals": sort_meal_history(list(meals)),
+    }
+
+
+def export_as_json(profile: dict, meals: list[dict]) -> str:
+    """Serialize build_export_payload() for st.download_button.
+
+    ensure_ascii=False keeps Vietnamese readable in a text editor instead of
+    turning "Bữa trưa" into escape sequences; the file is declared UTF-8 by
+    the download button's MIME type.
+    """
+    return json.dumps(
+        build_export_payload(profile, meals),
+        ensure_ascii=False,
+        indent=2,
+    )

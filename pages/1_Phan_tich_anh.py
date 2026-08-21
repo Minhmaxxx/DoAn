@@ -518,7 +518,7 @@ def _render_sample_hint():
     import config
 
     badges = "".join(
-        f"<div class='food-badge'>{config.FOOD_DISPLAY_NAMES[food_class]}</div>"
+        f"<div class='food-badge'>{escape(config.FOOD_DISPLAY_NAMES[food_class])}</div>"
         for food_class in config.FOOD_CLASSES
     )
     st.markdown(f"<div class='food-grid'>{badges}</div>", unsafe_allow_html=True)
