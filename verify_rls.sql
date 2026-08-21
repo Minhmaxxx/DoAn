@@ -10,6 +10,10 @@
 -- Reading the policy source proves it was written correctly, not that it is
 -- live in this database. These two queries are what proves that.
 
+-- Run the three queries ONE AT A TIME. The Supabase SQL Editor only shows the
+-- result of the last statement when several are run together, which silently
+-- hides queries 1 and 2 behind query 3 — and query 1 is the decisive one.
+
 -- 1. Is row level security enabled on both tables?
 --    Expected: two rows, relrowsecurity = true for both.
 --    A false here means every row is readable by anyone holding the

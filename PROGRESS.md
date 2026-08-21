@@ -753,7 +753,17 @@ Lý do cần có, và đây mới là điểm đáng ghi: **không có gì trong
 
 **Quyết định về phạm vi:** bài 1 của ma trận mục 12 `STORAGE_PLAN.md` yêu cầu tấn công trực diện — cầm JWT của tài khoản A gọi PostgREST đọc/sửa/xóa dữ liệu tài khoản B, gồm cả phép ghi một dòng `user_id = B` để kiểm chứng mệnh đề `with check`. Bài đó **cố ý hoãn lại**, không phải bỏ quên. Lý do: trọng tâm đồ án là phần AI, còn rủi ro thật ở đây không phải "policy viết sai" (đọc source là kiểm được) mà "policy chưa được bật", và ba câu truy vấn trên đã trả lời đúng câu đó với chi phí gần bằng không. Nếu cần một bằng chứng mạnh hơn để trả lời hội đồng thì viết script tấn công sau; hiện chưa cần.
 
-**Kết quả chạy:** chờ người dùng chạy `verify_rls.sql` và báo lại, sẽ ghi bổ sung vào mục này.
+**Kết quả chạy (2026-08-21):** câu 2 và câu 3 **đạt**. Trả về đúng 8 dòng, mỗi bảng đủ SELECT/INSERT/UPDATE/DELETE, và `qual`/`with_check` của từng policy khớp nguyên văn với `storage_schema.sql`:
+
+```
+((( SELECT auth.uid() AS uid) IS NOT NULL) AND (( SELECT auth.uid() AS uid) = user_id))
+```
+
+Đúng như thiết kế: `qual` trống ở INSERT (Postgres không đọc `using` cho INSERT), `with_check` trống ở SELECT/DELETE, còn UPDATE có cả hai — nếu UPDATE thiếu `with_check` thì một tài khoản vẫn sửa được dòng của mình rồi *đổi* `user_id` sang người khác. Dạng `(select auth.uid())` bọc trong subquery là chủ ý: Postgres coi đó là hằng số của câu truy vấn nên chỉ gọi một lần thay vì gọi lại trên từng dòng.
+
+Câu 1 (`relrowsecurity`) chưa có kết quả — SQL Editor của Supabase chỉ hiển thị kết quả của câu lệnh **cuối cùng** khi chạy nhiều câu một lượt, nên output của câu 1 và câu 2 bị câu 3 che mất. Đây đúng là câu quan trọng nhất: policy tồn tại đầy đủ nhưng RLS chưa bật thì Postgres **bỏ qua toàn bộ policy**, bảng vẫn mở toang, và câu 3 vẫn đạt y như trên. Phải chạy riêng câu 1 mới đóng được bài 1a.
+
+Rút ra cho lần sau: khi kiểm chứng bằng SQL Editor phải chạy từng câu một, hoặc gộp thành một câu bằng `union all`, chứ chạy cả file thì chỉ thấy câu cuối.
 
 ## 8. Công việc tiếp theo khi tiếp tục
 
@@ -771,7 +781,7 @@ Lý do cần có, và đây mới là điểm đáng ghi: **không có gì trong
 
 - Giai đoạn 0, A và C **đã xong**. **Bài 2 (F5 giữ đăng nhập) và bài 4 (đồng bộ đa thiết bị) đều PASS trên production ngày 2026-08-20** — xem nhật ký cùng ngày ở mục 7. Tính năng coi như hoàn tất về mặt chức năng.
 - **Cron chống pause đã xong** (2026-08-20): secrets đã thêm, workflow *Supabase keepalive* chạy xanh cả lần bấm tay lẫn lần theo lịch.
-- **Kiểm thử thủ công còn nợ** — bảng tình trạng đầy đủ 14 bài nằm ở cuối mục 12 `STORAGE_PLAN.md`. Việc gần nhất là chạy **`verify_rls.sql`** (bài 1a) trong SQL Editor — xác nhận RLS đang bật thật, vì đây là lỗi mà ứng dụng không lộ ra bằng bất kỳ triệu chứng nào. Bài 1b (tấn công trực diện bằng JWT của tài khoản khác) hoãn có chủ ý, xem lý do trong nhật ký 2026-08-20. Còn lại là biến thể môi trường: bài 3 (mở lại từ icon PWA), bài 5 (redeploy không mất phiên), bài 10 (lưu khi mất mạng), bài 13 (PWA standalone trên iPhone — Safari nghiêm ngặt nhất với cookie nên đây là bài dễ hỏng riêng), bài 14 (pause/restore project).
+- **Kiểm thử thủ công còn nợ** — bảng tình trạng đầy đủ 14 bài nằm ở cuối mục 12 `STORAGE_PLAN.md`. Việc gần nhất là chạy **câu 1 của `verify_rls.sql`** (`relrowsecurity`) riêng lẻ trong SQL Editor để đóng bài 1a — câu 2 và 3 đã đạt ngày 2026-08-21, còn câu 1 bị che vì SQL Editor chỉ hiện kết quả câu cuối. Câu 1 là câu quyết định: policy đủ mà RLS tắt thì Postgres bỏ qua toàn bộ policy, và ứng dụng không lộ ra triệu chứng nào. Bài 1b (tấn công trực diện bằng JWT của tài khoản khác) hoãn có chủ ý, xem lý do trong nhật ký 2026-08-20. Còn lại là biến thể môi trường: bài 3 (mở lại từ icon PWA), bài 5 (redeploy không mất phiên), bài 10 (lưu khi mất mạng), bài 13 (PWA standalone trên iPhone — Safari nghiêm ngặt nhất với cookie nên đây là bài dễ hỏng riêng), bài 14 (pause/restore project).
 - **Rủi ro còn lại đã biết:** GitHub tự tắt scheduled workflow sau 60 ngày repo không có hoạt động, nên trước buổi bảo vệ vẫn phải đánh thức và kiểm tra project Supabase thủ công, không tin hoàn toàn vào cron.
 - Giai đoạn D: rà 23 chỗ `unsafe_allow_html=True` còn lại (đã xác nhận `pages/3_Ho_so.py`→`utils/ui.py` escape đúng), thêm test XSS chốt hành vi, export JSON dự phòng.
 - `utils/history.append_meal_once()` giờ không còn trang nào gọi (đã thay bằng `SessionRepository.save_meal`), chỉ còn test dùng — cân nhắc bỏ khi dọn dẹp.

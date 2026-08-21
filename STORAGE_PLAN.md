@@ -434,7 +434,7 @@ bắt được, giống hệt bài học của Giai đoạn 0):
 
 | # | Tình trạng | Bằng chứng |
 |---|---|---|
-| 1a | Chờ chạy | `verify_rls.sql` — ba truy vấn xác nhận RLS đang **bật** và tám policy đang **sống** trong database. Bắt được lỗi mà ứng dụng hoàn toàn không lộ ra: nếu nửa dưới `storage_schema.sql` chưa từng chạy thì app vẫn hoạt động y hệt, chỉ là bảng mở toang |
+| 1a | Một phần (2026-08-21) | `verify_rls.sql`. Câu 2 và 3 **đạt**: đủ 8 policy, `qual`/`with_check` đều so `auth.uid()` với `user_id`. Câu 1 (`relrowsecurity`) **còn nợ** — SQL Editor chỉ hiện kết quả câu cuối khi chạy cả file, phải chạy riêng câu 1. Đây mới là câu quyết định: RLS tắt thì Postgres bỏ qua sạch 8 policy kia |
 | 1b | **Hoãn có chủ ý** | Tấn công trực diện: cầm JWT tài khoản A gọi PostgREST đọc/sửa/xóa dữ liệu B, và ghi một dòng `user_id = B` để kiểm chứng mệnh đề `with check`. Chỉ cần khi muốn có bằng chứng HTTP cụ thể trả lời hội đồng; rủi ro thật đã được 1a phủ |
 | 2 | **PASS** | Production, 2026-08-20. Sau F5: `Thấy cookie phiên: true`, hồ sơ vừa chỉnh còn nguyên |
 | 3 | Chưa chạy | |
