@@ -4,6 +4,9 @@
 pytest>=8.0.0,<10.0.0
 pyngrok>=7.2.0,<9.0.0
 
+# Thesis report builder (docs/make_report.py)
+python-docx>=1.1.0,<2.0.0
+
 # Training, evaluation, and data collection
 pyyaml>=6.0.0,<7.0.0
 requests>=2.31.0,<3.0.0

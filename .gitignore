@@ -106,3 +106,6 @@ htmlcov/
 datasets/
 
 CLAUDE.md
+
+# Reference thesis reports from other students, kept locally only
+docs/*.pdf

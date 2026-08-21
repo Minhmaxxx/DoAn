@@ -801,6 +801,30 @@ Hai quyết định trong hàm này đáng ghi: payload có trường `version` 
 
 **Kiểm chứng:** `.venv311\Scripts\python.exe -m pytest -q` → **172 passed, 1 skipped** (trước Giai đoạn D là 159 passed, 1 skipped; +13 test).
 
+### 2026-08-21 - Dựng bản thảo báo cáo tốt nghiệp theo mẫu HaUI
+
+**Đầu vào.** Hai báo cáo mẫu của khóa trước trong `docs/` (82 và 109 trang, cùng GVHD). Rút ra bố cục chuẩn: LỜI CẢM ƠN → MỤC LỤC → ba danh mục (chữ viết tắt, bảng, hình) → MỞ ĐẦU sáu mục → 4–5 chương → TÀI LIỆU THAM KHẢO. Trang bìa để trống theo yêu cầu, chờ mẫu của giảng viên.
+
+**Đầu ra:** `docs/BaoCao_NutriVision.docx` — 5 chương, 19 bảng, 16 vị trí chèn hình đã đánh dấu sẵn, khổ A4, Times New Roman 13, giãn dòng 1.5, lề 3-2-2.5-2.5.
+
+**Quyết định về cách dựng, đây là điểm đáng ghi:** báo cáo được sinh bằng script `docs/make_report.py` + `docs/report_*.py` chứ không gõ tay vào Word. Lý do: các bảng số liệu benchmark **đọc thẳng từ CSV đã đóng băng** trong `test_model/benchmark_results_common_v1/` tại thời điểm dựng file. Gõ tay 3 × 6 ô ở bảng tổng thể và 12 × 6 ô ở bảng theo lớp là 90 con số chép tay — sai một chữ số trong báo cáo tốt nghiệp thì không có gì bắt được, và hội đồng có thể đối chiếu với CSV. Sinh tự động thì báo cáo và bằng chứng không thể lệch nhau. Chạy lại: `cd docs && ..\.venv311\Scripts\python.exe make_report.py`.
+
+**Các điểm đã cố ý viết vào báo cáo dù nó làm kết quả bớt đẹp:**
+
+- Mục 4.3 nêu rõ A/B là **so sánh hệ thống, không phải ablation có kiểm soát** — vì A và B đổi đồng thời offline augmentation, số ảnh Phở/Xôi, hard negatives và phân bố validation. Báo cáo kết luận "quy trình dữ liệu của B tốt hơn", không kết luận "augmentation là nguyên nhân". Khớp với ràng buộc đã chốt ở mục 1.
+- Mục 4.5.3 nêu rõ **tập âm tính chỉ 10 ảnh**, nên "0 FP" là chỉ báo dùng làm tie-break chứ không phải bằng chứng thống kê.
+- Mục 4.5.2 giải thích Gỏi cuốn recall 0.5044 bằng bản chất bài toán (nhiều cuốn nhỏ sát nhau) chứ không đổ cho thiếu dữ liệu, và chỉ ra HITL bù được phần này.
+- Mục 4.6 trình bày quy tắc chọn model **công bố trước khi nhìn kết quả**, kèm lý do precision quan trọng hơn recall trong ứng dụng này (bỏ sót thì người dùng thấy và sửa được; báo nhầm mà bấm lưu thì con số sai nằm lại trong nhật ký).
+- Mục 4.7 ghi lại bốn vấn đề kỹ thuật chỉ lộ ra ở môi trường thật: đảo kênh RGB/BGR, `st.rerun()` nuốt lệnh ghi cookie, app không đọc `?error=` của OAuth, và kết quả rà `unsafe_allow_html`.
+
+**Còn thiếu để nộp được:** trang bìa, 16 hình (ảnh chụp màn hình + 3 biểu đồ kết quả), số trang trong MỤC LỤC, và chữ ký/tên ở LỜI CẢM ƠN. Mỗi chỗ chèn hình đã có dòng đánh dấu `[ CHÈN HÌNH: ... ]` trong file.
+
+**Quyết định về `docs/`:** hai file PDF báo cáo mẫu là tài liệu của sinh viên khác, đã thêm `docs/*.pdf` vào `.gitignore` — giữ ở máy, không đưa lên repo. `*.docx` vốn đã bị ignore từ trước nên bản `.docx` sinh ra cũng không lên repo; chỉ commit script sinh.
+
+**Sửa kèm:** hai fixture test mới viết hôm nay dùng nhãn `"Duy trì cân nặng"` và `"Vận động nhẹ (1-3 ngày/tuần)"` — cả hai đều không nằm trong dict tra cứu của `utils/nutrition.py` nên rơi vào nhánh fallback. Test vẫn xanh (fallback là hành vi có chủ ý) nhưng fixture không phản ánh dữ liệu thật. Đã đổi sang `"Giữ cân"` và `"Nhẹ nhàng (1-3 ngày/tuần)"`. Đây đúng là loại lỗi mà mục "Vietnamese labels are executable lookup keys" trong `AGENTS.md` cảnh báo.
+
+**Kiểm chứng:** `.venv311\Scripts\python.exe -m pytest -q` → **172 passed, 1 skipped**.
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
 ### Phase C5 - Kiểm tra thủ công còn lại

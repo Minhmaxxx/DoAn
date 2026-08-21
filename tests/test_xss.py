@@ -68,8 +68,8 @@ def _profile(**overrides) -> dict:
         "gender": "Nam",
         "height_cm": 170.0,
         "weight_kg": 65.0,
-        "activity_level": "Vận động nhẹ (1-3 ngày/tuần)",
-        "goal": "Duy trì cân nặng",
+        "activity_level": "Nhẹ nhàng (1-3 ngày/tuần)",
+        "goal": "Giữ cân",
     }
     profile.update(overrides)
     return profile

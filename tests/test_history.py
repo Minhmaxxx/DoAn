@@ -173,7 +173,7 @@ def test_record_signature_is_stable_across_calls():
 
 
 def _export_fixture():
-    profile = {"name": "Lan", "age": 22, "goal": "Duy trì cân nặng"}
+    profile = {"name": "Lan", "age": 22, "goal": "Giữ cân"}
     meals = [
         {
             "timestamp": "2026-08-01T08:00:00+07:00",
