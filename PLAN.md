@@ -100,7 +100,7 @@ Các quan sát cần giữ trong báo cáo:
 - Với 10 lớp đầu, số ảnh và số box train của B đúng bằng 3 lần A, phù hợp với quy trình offline augmentation 3x.
 - B có thêm dữ liệu Phở, Xôi và ảnh nền/hard negative ngoài phần nhân 3.
 - Empty-label files của B là nhãn hợp lệ cho ảnh không chứa đối tượng mục tiêu, không phải file hỏng.
-- README Roboflow ghi 8,205 ảnh cho A và 20,255 ảnh cho B, trong khi inventory local lần lượt là 3,860 và 10,103 ảnh. Chênh lệch này phải được đối chiếu với filter/export version trước khi đưa số liệu vào báo cáo.
+- README Roboflow ghi 8,205 ảnh cho A và 20,255 ảnh cho B, trong khi inventory local lần lượt là 3,860 và 10,103 ảnh. Chênh lệch này phải được đối chiếu với filter/export version trước khi đưa số liệu vào báo cáo. **[Đã giải quyết 2026-08-21]** Chênh lệch đúng bằng số cặp ảnh–nhãn rỗng 0 KB bị dọn khỏi bản xuất (script `clean_nulls.py`: 4.345 cặp cho A, 10.409 cặp cho B), cộng 257 ảnh nền âm tính ghép thêm vào B: 8.205 − 4.345 = 3.860 và 20.255 − 10.409 + 257 = 10.103. Bằng chứng là ảnh chụp màn hình trong `docs/Ảnh chụp màn hình/`, đã đưa vào báo cáo mục 4.2.5 + Bảng 4.3.
 - Dataset và checkpoint là artifact gitignored; Git hiện không phải bản sao lưu cho các tệp này.
 
 ### 3.4 Checkpoint đã kiểm tra

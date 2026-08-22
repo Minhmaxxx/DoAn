@@ -825,6 +825,172 @@ Hai quyết định trong hàm này đáng ghi: payload có trường `version` 
 
 **Kiểm chứng:** `.venv311\Scripts\python.exe -m pytest -q` → **172 passed, 1 skipped**.
 
+### 2026-08-21 - Rà lại bản thảo báo cáo so với hai mẫu HaUI: sửa format, không có lỗi nội dung
+
+**Bối cảnh.** Đọc lại toàn bộ `docs/BaoCao_NutriVision.docx` (dump từng đoạn văn + bảng ra text để soát) và đối chiếu mọi số liệu/bảng với nguồn: `test_model/benchmark_results_common_v1/*.csv`, `utils/nutrition.py`, `config.py`, và số ca test thật (`pytest --collect-only`). Mọi con số trong 9 bảng dữ liệu (kết quả benchmark, hệ số vận động, ngưỡng BMI, số ca kiểm thử theo file) khớp chính xác với nguồn — báo cáo được sinh từ script nên không có lỗi chép tay. Không thấy lỗi chính tả hay lỗi logic nội dung nào cần sửa.
+
+**Việc tìm thấy và sửa là lỗi format**, phát hiện bằng cách đọc `docs/build_report.py` và đối chiếu với hai file PDF mẫu (`docs/CNTT_2022603255_..._Baocao.pdf` 82 trang, `docs/CNTT_2022603730_..._BaoCao.pdf` 109 trang — trích text bằng `pypdf` vì máy không có `poppler`):
+
+1. **Tiêu đề chương/mục chỉ là đoạn Normal in đậm, không phải Heading style thật.** Ghi chú cuối MỤC LỤC bảo người đọc có thể "thay bằng mục lục tự động của Word qua References → Table of Contents" — nhưng tính năng đó dựa vào outline level của Heading style, nên trước đây sẽ không tìm thấy gì. Đã đổi `heading()` sang dùng style "Heading 1/2/3" thật của Word (giữ nguyên font/cỡ chữ/căn giữa bằng định dạng trực tiếp đè lên style), màu chữ ép về đen vì style Heading mặc định có màu xanh.
+2. **`toc_line()` có docstring hứa "dotted tab to the right margin" nhưng code không hề thêm tab hay leader nào** — mục lục thủ công vì vậy chỉ là danh sách chữ trơn, khác hẳn hai bản mẫu. Đã thêm tab stop căn phải có leader chấm tới lề phải (16cm), không in số trang giả vì số thật chưa biết cho tới khi chèn bìa/hình.
+3. **Đánh số trang toàn bộ báo cáo là Ả Rập liên tục** — cả hai bản mẫu đều đánh số La Mã thường (i, ii, …) cho phần mở đầu (Lời cảm ơn → Danh mục hình) rồi mới chuyển Ả Rập bắt đầu lại từ 1 ở MỞ ĐẦU, và trang bìa không đánh số. Đã tách thành 3 section (`start_front_matter_section`, `start_body_section` trong `build_report.py`) và **kiểm chứng trực tiếp bằng Microsoft Word thật qua COM automation** (`New-Object -ComObject Word.Application`, đọc `Selection.Information` per-page sau khi `SeekView` vào từng footer) — không chỉ tin vào XML: trang bìa footer rỗng, trang 2–8 hiện `i…vii`, trang 9 trở đi hiện `1, 2, …`. Việc này bắt được một lỗi con của chính python-docx (`_get_or_add_definition` đẩy phần định nghĩa footer về section đầu tiên nếu không chủ động `is_linked_to_previous = False` trước) mà chỉ test trực quan trong Word thật mới lộ ra — đọc XML một mình từng cho kết quả trông "đúng" nhưng sai.
+4. **4/19 bảng bị tràn lề phải** một chút (đo trực tiếp trong Word: tràn 6.2pt ≈ 0.22cm) vì tổng `widths=[...]` trong `table()` cộng lại vượt 16.0cm (khổ in được sau lề 3–2cm): Bảng 1.1, Bảng 2.1 (`report_ch12.py`), Bảng 4.5, Bảng 4.6 (`report_ch45.py`). Đã chỉnh lại để mỗi bảng cộng đúng 16.0cm; kiểm tra lại cả 19 bảng qua Word COM, không còn bảng nào tràn lề.
+5. **Danh mục tài liệu tham khảo:** cả hai bản mẫu đều viết "Truy cập tại: <URL>" trước link web; bản của mình có 7/18 mục chỉ dán URL trần sau dấu chấm. Đã thêm "Truy cập tại:" cho các mục đó ([2], [10], [12], [13], [14], [17], [18]).
+
+**Không đổi:** nội dung 5 chương, số liệu, cách trích dẫn benchmark từ CSV, cấu trúc mục lục thủ công 90 dòng (đã đối chiếu từng dòng với các lệnh `heading()` thật — khớp tuyệt đối, không thiếu/thừa mục nào).
+
+**Kiểm chứng:**
+- `.venv311\Scripts\python.exe -m pytest -q` → **172 passed, 1 skipped** (không đổi — các script `docs/` không có test nào đụng tới).
+- Dump nội dung văn bản trước/sau mỗi lần sửa bằng `python-docx`, diff — xác nhận không có thay đổi ngoài ý muốn ở phần văn xuôi.
+- Mở file thật trong Microsoft Word qua COM automation (máy có sẵn Word) để đọc số trang footer từng trang và vị trí cạnh phải từng bảng — cách kiểm chứng đáng tin hơn hẳn so với chỉ đọc XML, vì chính XML "trông đúng" đã từng che giấu lỗi ở bước 3.
+
+**Còn nguyên như cũ, chưa đụng tới:** trang bìa (vẫn là placeholder chờ mẫu giảng viên), 16 vị trí chèn hình, chữ ký ở LỜI CẢM ƠN, số trang thật trong MỤC LỤC (phải cập nhật sau khi chèn bìa/hình vì trang sẽ dịch chuyển).
+
+### 2026-08-21 - Đối chiếu với văn bản quy định chính thức của trường (QuyDinhLamDoAn.doc), sửa 3 lỗi format thật
+
+**Bối cảnh.** Người dùng cung cấp `docs/QuyDinhLamDoAn.doc` (thực chất là .docx, mở được bằng `python-docx`) — văn bản "Quy cách chung đối với Đồ án, Khóa luận tốt nghiệp" của trường, tức nguồn chính thức, cấp cao hơn hai bản PDF mẫu đã dùng ở lần rà soát trước (mẫu chỉ là bài đã nộp của hai sinh viên khác, có thể lệch chuẩn ở vài chỗ). Đối chiếu lại thì phát hiện phần rà soát trước đã suy luận sai 3 điểm vì chỉ dựa vào mẫu:
+
+1. **Cỡ chữ:** quy định ghi rõ "chữ Times New Roman cỡ 14" — file đang dùng 13. Đã sửa `BODY_PT` trong `build_report.py` thành 14.
+2. **Lề trang:** quy định ghi "lề trên 2,5 cm; lề dưới 2 cm; lề trái 3,5 cm; lề phải 2 cm" — file đang dùng trái 3.0/dưới 2.5. Đã sửa `_apply_margins()`.
+3. **Vị trí số trang:** quy định ghi rõ "Số trang được đánh ở giữa, **phía trên** đầu mỗi trang giấy" — file đang đặt số trang ở footer (suy ra từ mẫu, không có căn cứ văn bản). Đã chuyển `add_page_numbers()` sang `section.header` thay vì `section.footer`, kể cả logic `is_linked_to_previous` chống lỗi python-docx đẩy phần định nghĩa về section đầu (xem mục ngày trước) — áp dụng y hệt nhưng cho header.
+
+**Bắt được thêm một lỗi thật khi kiểm chứng lại bằng Word COM:** sau khi chuyển số trang sang header, mở bằng Word thật thì mọi trang đều hiện số Ả Rập liên tục dù `w:pgNumType` đã đặt `lowerRoman` cho phần mở đầu — tức lỗi cũ (bước 3 của mục trước) **chưa từng thực sự được sửa dứt điểm**, chỉ tình cờ đúng ở footer. Nguyên nhân: `set_page_number_format()` chèn `<w:pgNumType>` bằng `sect_pr.append(...)`, tức luôn đặt ở **cuối** `sectPr` — sau `w:cols` và `w:docGrid`. `CT_SectPr` trong OOXML là một sequence có thứ tự bắt buộc (pgNumType phải đứng ngay sau pgMar, trước cols), và Word **âm thầm bỏ qua** phần tử sai vị trí thay vì báo lỗi — mở file vẫn không có cảnh báo "repair" nào. Đã sửa bằng `pg_mar.addnext(pg_num_type)` để chèn đúng ngay sau `w:pgMar`. Kiểm chứng bằng cách export ra PDF thật qua Word COM (`doc.SaveAs2(path, 17)`) rồi đọc dòng đầu mỗi trang bằng `pypdf`: trang 1 (bìa) không có số, trang 2 = `i`, trang 3 = `ii`, trang 9 = `1`, trang 10 = `2`, trang 48 = `40` — đúng.
+
+**Hệ quả của việc lề trái tăng 3.0→3.5cm:** khổ in được giảm từ 16.0cm còn 15.5cm, khiến 17/19 bảng (đã canh đúng 16.0cm ở lần sửa trước) tràn lề 0.5cm. Đã trừ 0.5cm vào cột cuối (thường là cột mô tả, rộng nhất) của cả 17 bảng trong `build_report.py`, `report_ch3.py`, `report_ch12.py`, `report_ch45.py`. Kiểm chứng lại bằng Word COM: so `Table.Columns` cộng dồn với `PageSetup.PageWidth - LeftMargin - RightMargin` cho cả 19 bảng — không còn bảng nào tràn.
+
+**Sửa nội dung theo yêu cầu người dùng:** mục "4. Phương pháp thực hiện" ở MỞ ĐẦU (`report_body.py`) trước đó liệt kê chi tiết cấp triển khai (mã băm SHA-256, "cổng kiểm thử tự động phải xanh", cookie phiên/đăng nhập Google/đồng bộ hai thiết bị) — không giống văn phong của cả hai bản mẫu (chỉ liệt kê phương pháp/công nghệ ở mức khái quát, 2-3 dòng ngắn) và lạc vào chi tiết đáng lẽ thuộc Chương 4. Đã viết lại ngắn gọn, giữ đúng 4 phương pháp nhưng bỏ chi tiết triển khai (các chi tiết đó vẫn còn nguyên trong Chương 4, không mất thông tin).
+
+**Kiểm chứng:**
+- `.venv311\Scripts\python.exe -m pytest -q` → **172 passed, 1 skipped**.
+- Word COM: `PageSetup` của section 2 → trái 3.5/phải 2.0/trên 2.5/dưới 2.0 cm đúng; cỡ chữ đoạn văn thân bài = 14pt đúng.
+- Word COM export PDF + `pypdf` đọc dòng đầu từng trang: xác nhận số trang header đúng cả La Mã lẫn Ả Rập, đúng như liệt kê ở trên.
+- Word COM duyệt cả 19 bảng: không bảng nào tràn lề in được mới (15.5cm).
+
+**Bài học ghi lại vì có thể lặp lại:** đọc XML một mình không đủ để tin phần tử có tác dụng — `CT_SectPr` (và nhiều complex type khác trong OOXML) có ràng buộc thứ tự, và Word không báo lỗi khi phần tử sai vị trí, nó chỉ lặng lẽ bỏ qua. Bất cứ khi nào tạo phần tử mới trong `sectPr` bằng `OxmlElement` + chèn thủ công, phải chèn đúng vị trí trong sequence (dùng `.addnext()`/`.addprevious()` cạnh phần tử liền kề đã biết chắc có mặt), không dùng `.append()` để đẩy xuống cuối.
+
+### 2026-08-21 - Gỡ `docs/` khỏi Git, chèn 14 ảnh chụp quy trình dữ liệu vào báo cáo, thêm bộ ôn tập bảo vệ
+
+**Yêu cầu.** Không commit phần báo cáo lên GitHub; tách nội dung báo cáo ra một bộ tài
+liệu riêng dễ ôn để bảo vệ; đưa thư mục ảnh chụp màn hình người dùng lưu lại trong lúc làm
+vào báo cáo.
+
+**1. Gỡ `docs/` khỏi Git.** `git rm -r --cached docs/` (7 script sinh báo cáo — tệp vẫn
+nguyên trên đĩa) và thay hai dòng `docs/*.pdf` + `docs/*.doc` trong `.gitignore` bằng cả
+thư mục `docs/`, kèm `OnTap_BaoVe/`. Đã kiểm tra không có tệp nào ngoài `docs/` tham chiếu
+tới đường dẫn đó (`app.py`, `config.py`, `tests/`, `utils/`, `pages/`, `.github/`) nên việc
+gỡ không ảnh hưởng ứng dụng hay cổng kiểm thử.
+
+**Điểm phải nói rõ:** `git log origin/main..main` rỗng, tức commit `a581d69` đã được đẩy
+lên GitHub. Bảy script đó **mang toàn bộ văn xuôi báo cáo** nên nội dung vẫn nằm trong lịch
+sử trên remote. Gỡ khỏi index chỉ chặn từ commit sau trở đi. **Đã xử lý ngày 2026-08-22**
+bằng cách viết lại commit rồi force-push — xem mục 2026-08-22 ngay bên dưới.
+
+**2. Chèn 14 ảnh chụp màn hình vào báo cáo.** Đây là ảnh thật chụp trong lúc dựng dữ liệu
+(Roboflow, script dọn nhãn rỗng, thư mục ảnh nền, nhật ký train trên Kaggle), nằm ở
+`docs/Ảnh chụp màn hình/`.
+
+- Thêm `image()` vào `build_report.py`: đọc kích thước ảnh bằng `docx.image.image.Image`
+  (không cần Pillow), giới hạn 15,0 × 9,0 cm giữ nguyên tỷ lệ — khổ in là 15,5 cm nên ảnh
+  để nguyên kích thước gốc sẽ tràn lề; chặn chiều cao là để ảnh không đẩy chú thích của
+  chính nó sang trang sau. Thiếu tệp thì rơi về đúng marker `[ CHÈN HÌNH: ... ]` cũ nên
+  báo cáo vẫn build được nếu checkout không kèm thư mục ảnh.
+- Viết lại mục 4.2 thành 6 tiểu mục (4.2.1 thu thập/gán nhãn → 4.2.6 rò rỉ dữ liệu), thêm
+  Hình 4.1–4.13 và Hình 4.14 (nhật ký train Baseline A) ở mục 4.3, kèm hai bảng mới:
+  Bảng 4.2 (số nhãn theo lớp trước/sau bổ sung) và Bảng 4.3 (đối chiếu số ảnh).
+- Chương 4 do đó: bảng 9 → 11, hình 4 → 18. Đã dồn số các bảng/hình phía sau và cập nhật
+  `TABLE_LIST`, `FIGURE_LIST`, `report_toc.py`. Không có đoạn văn nào tham chiếu chéo tới
+  số bảng/hình cũ nên việc dồn số là thuần cơ học.
+
+**Việc đáng giá nhất tìm ra từ mấy tấm ảnh này:** chúng giải thích đúng chỗ chênh lệch mà
+`PLAN.md` mục 3.3 ghi là *"phải được đối chiếu trước khi đưa số liệu vào báo cáo"* — README
+Roboflow ghi 8.205 và 20.255 ảnh trong khi inventory local là 3.860 và 10.103. Nguyên nhân:
+bản xuất Roboflow kèm cả ảnh chưa gán nhãn, mỗi ảnh một tệp nhãn rỗng 0 KB, mà ở định dạng
+YOLO tệp nhãn rỗng nghĩa là *"ảnh này không có đối tượng"* — tức ảnh phở chưa gán nhãn đang
+dạy mô hình rằng phở là nền. Script `clean_nulls.py` đã dọn 4.345 cặp (A) và 10.409 cặp (B).
+Phép cộng khớp chính xác cả hai bộ:
+
+- A: 8.205 − 4.345 = 3.860 = 2.711 + 751 + 398 ✔
+- B: 20.255 − 10.409 = 9.846, cộng 257 ảnh nền = 10.103 = 8.852 + 819 + 432 ✔
+- và 257 = 225 + 21 + 11, đúng bằng số tệp nhãn rỗng của B ghi trong `PLAN.md` mục 3.3 ✔
+
+Nghĩa là toàn bộ chênh lệch đã truy hết, không còn phần nào không rõ nguồn gốc. Đã đưa vào
+báo cáo thành mục 4.2.5 + Bảng 4.3. **Mục "Đối chiếu chênh lệch inventory local với số liệu
+trong README Roboflow" ở `PLAN.md` coi như xong.**
+
+**3. Bộ ôn tập bảo vệ — `OnTap_BaoVe/ON_TAP_BAO_VE.md`** (một tệp Markdown duy nhất, có mục lục dẫn tới 60 mục, gitignored): tóm tắt 1 trang,
+số liệu phải thuộc, lý thuyết nền, hệ thống và 4 vấn đề kỹ thuật, 50 câu hỏi phản biện kèm
+đáp án, kịch bản thuyết trình 15 phút + checklist demo. Mọi số đều lấy từ báo cáo,
+`overall_metrics.csv`, `per_class_metrics.csv` hoặc mã nguồn.
+
+**Kiểm chứng:**
+- `cd docs && ..\.venv311\Scripts\python.exe make_report.py` → `paragraphs=561 tables=21`.
+- Đọc lại `.docx` bằng `python-docx`: **14 tệp ảnh nhúng thật** trong `word/media/`; danh
+  mục hình (30 mục) và danh mục bảng (20 mục) **khớp từng ký tự** với chú thích trong thân
+  bài; số hình và số bảng trong thân bài tăng dần đúng thứ tự; 16 marker chèn hình còn lại
+  đúng bằng số hình chưa có ảnh (1.1, 2.1–2.2, 3.1–3.9, 4.15–4.18).
+- Kích thước ảnh sau khi nhúng: rộng tối đa 15,00 cm, cao tối đa 9,00 cm — không ảnh nào
+  tràn khổ in 15,5 cm.
+- `.venv311\Scripts\python.exe -m pytest -q` → **172 passed, 1 skipped**.
+- `git status`: chỉ còn `.gitignore` và `PROGRESS.md` là sửa; `docs/` và `OnTap_BaoVe/`
+  không xuất hiện (đã ignore); 14 ảnh và 7 script vẫn nguyên trên đĩa.
+
+**Một lỗi tự gây ra khi dồn số, ghi lại vì dễ lặp:** dồn số hình bằng replace chuỗi theo
+thứ tự giảm dần (4.4→4.18, 4.3→4.17, 4.2→4.16, 4.1→4.15) tạo ra `Hình 4.156/4.157/4.158`,
+vì `"Hình 4.1"` là **tiền tố** của `"Hình 4.16"` vừa sinh ra ở bước trước. Thứ tự giảm dần
+chỉ an toàn khi các số đích không tạo ra tiền tố mới của số nguồn chưa xử lý. Đã sửa và
+kiểm lại bằng cách đọc ngược từ `.docx`.
+
+### 2026-08-22 - Xóa `docs/` khỏi lịch sử trên GitHub (viết lại commit + force-push)
+
+**Yêu cầu.** Thu hồi thư mục `docs/` đã trót đẩy lên GitHub, và không đưa nó lên nữa.
+
+**Khảo sát trước khi làm.** `git log --all --oneline -- docs/` chỉ trả về **một** commit là
+`a581d69`, và commit đó đúng bằng `origin/main`. Kiểm tra lại bằng cách duyệt cây của cả 37
+commit (`git ls-tree -r` từng commit, lọc `^docs/`) để chắc chắn không commit nào khác từng
+chứa đường dẫn đó — kết quả chỉ ra 7 script của `a581d69`. Vì vậy **không cần `git
+filter-repo`** viết lại toàn bộ lịch sử; chỉ cần dựng lại đúng commit đầu.
+
+**Cách làm.**
+
+- `git update-ref refs/backup/pre-docs-purge a581d69` giữ commit cũ ở cục bộ. Cố ý dùng ref
+  ngoài `refs/heads/*` để `git push --all` không bao giờ vô tình đẩy nó lên lại. Chép thêm 7
+  script ra ngoài repo.
+- `git reset --soft a581d69^` chỉ dịch HEAD; index (đã bằng cây của `a581d69` trừ `docs/`
+  nhờ `git rm -r --cached` hôm trước) và thư mục làm việc đều không bị đụng tới. **Không
+  dùng `--hard`** — `--hard` sẽ xóa luôn 7 script khỏi đĩa.
+- `git commit -F <msg>` với `GIT_AUTHOR_*` và `GIT_COMMITTER_*` đặt lại đúng tên, email và
+  mốc thời gian của `a581d69`, để bản viết lại chỉ khác bản cũ ở nội dung.
+- Sửa một đoạn trong commit message gốc: câu *"docs/\*.pdf is gitignored, only the builder
+  scripts are committed"* mô tả thứ không còn nằm trong commit nữa, nên viết lại thành *"The
+  whole docs/ tree stays out of Git..."*. Phần còn lại giữ nguyên từng ký tự.
+
+`a581d69` → `71bd106`.
+
+**Kiểm chứng trước khi đẩy lên:**
+
+- `git diff a581d69 71bd106 --stat` → đúng 7 tệp bị xóa, 1.947 dòng, không tệp nào khác.
+- `git show --stat 71bd106` → vẫn giữ nguyên 5 thay đổi ngoài `docs/` của commit gốc
+  (`.gitignore`, `PROGRESS.md`, `requirements-dev.txt`, `tests/test_history.py`,
+  `tests/test_xss.py`).
+- Duyệt cây của cả 37 commit reachable từ `main`, lọc `^docs/` → rỗng.
+- `git rev-list main --count` → 37, không mất commit nào.
+- `find docs -type f | wc -l` → 32, `.docx` vẫn 3.893.975 byte — thư mục trên đĩa nguyên vẹn.
+- `git check-ignore -v` → `docs/` và `OnTap_BaoVe/` đều khớp quy tắc ignore.
+- `.venv311\Scripts\python.exe -m pytest -q` → **172 passed, 1 skipped**.
+
+**Đẩy lên.** `git push --force-with-lease origin main`, kèm một commit thường cho
+`.gitignore` (chặn cả `docs/` lẫn `OnTap_BaoVe/`), `PLAN.md` và `PROGRESS.md`. Không có
+commit đó thì lịch sử sạch nhưng quy tắc chặn lại chưa có trên remote, nên lần `git add -A`
+sau ở máy khác vẫn đưa `docs/` lên lại. Dùng `--force-with-lease` chứ không phải `--force`:
+nếu remote đã đổi so với `origin/main` mà máy này biết thì lệnh dừng lại thay vì đè lên.
+
+**Giới hạn phải biết, không nên nói là đã xóa sạch.** Force-push làm `a581d69` thành object
+không còn ai trỏ tới, nhưng GitHub **không thu gom rác ngay**: ai biết mã băm đầy đủ vẫn có
+thể mở `github.com/Minhmaxxx/DoAn/commit/a581d69...` một thời gian nữa. Muốn chắc chắn thì
+phải nhờ GitHub Support chạy GC, hoặc xóa repo rồi tạo lại và push bản lịch sử mới. Ngoài
+ra, nếu repo từng ở chế độ public thì bản fork hoặc bản clone của người khác không bị lệnh
+push này ảnh hưởng.
+
 ## 8. Công việc tiếp theo khi tiếp tục
 
 ### Phase C5 - Kiểm tra thủ công còn lại

@@ -107,5 +107,12 @@ datasets/
 
 CLAUDE.md
 
-# Reference thesis reports from other students, kept locally only
-docs/*.pdf
+# --- Thesis report: kept on disk, backed up outside Git ---
+# The whole docs/ tree stays local. It holds the generated .docx, the
+# python-docx build scripts (which carry the full report prose), the
+# screenshots taken while building the dataset, and the reference reports
+# belonging to other students. None of that belongs in the code repository.
+docs/
+
+# Revision notes written from the report, for the defense.
+OnTap_BaoVe/
